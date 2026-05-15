@@ -1,14 +1,3 @@
----
-AIGC:
-    ContentProducer: Minimax Agent AI
-    ContentPropagator: Minimax Agent AI
-    Label: AIGC
-    ProduceID: "00000000000000000000000000000000"
-    PropagateID: "00000000000000000000000000000000"
-    ReservedCode1: 3044022034d2713afb5ab8c14b512fdfccc9db409e06cb5f783a8b83455d26f96497290702206db9acce57e8537ec5554e91440140a17a839aa7e20708a949f36232b76b1d31
-    ReservedCode2: 3046022100c247f11f7be08bcf8a190d320ed44fc162887bcd093f4d688b9d023773be70bf022100e251420f2638dc9eaebe90fde481d965dee837a8f35e36b0ac09c55f0de6da28
----
-
 # 图像盲评系统 v0.2
 
 ## 快速启动
