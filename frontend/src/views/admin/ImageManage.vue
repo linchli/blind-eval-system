@@ -383,17 +383,82 @@ function importJsonData() {
   try {
     const json = JSON.parse(jsonInput.value)
 
+    // 基础采集信息 → note_attrs
     if (json['基础采集信息']) {
-      Object.assign(form.value.note_attrs, json['基础采集信息'])
+      const mapping = {
+        '采集时间': 'capture_time',
+        '采集人员': 'capture_person',
+        '采集地点': 'capture_location',
+        '采集环境': 'capture_env',
+        '设备编号': 'device_code',
+        '采集目的': 'capture_purpose',
+        '特殊说明': 'special_note'
+      }
+      for (const [key, value] of Object.entries(json['基础采集信息'])) {
+        const mappedKey = mapping[key] || key
+        form.value.note_attrs[mappedKey] = value
+      }
     }
+
+    // 场景信息 → env_attrs
     if (json['场景信息']) {
-      Object.assign(form.value.env_attrs, json['场景信息'])
+      const mapping = {
+        '点位类型': 'point_type',
+        '天气': 'weather',
+        '季节': 'season',
+        '时段': 'time_period',
+        '照明模式': 'lighting_mode',
+        '光照类型': 'light_type',
+        '目标类型': 'target_type',
+        '环境色温': 'env_color_temp',
+        '样机计算色温': 'calc_color_temp',
+        '环境照度': 'env_illuminance',
+        '运动状态': 'motion_state',
+        '关系描述': 'relation_desc'
+      }
+      for (const [key, value] of Object.entries(json['场景信息'])) {
+        const mappedKey = mapping[key] || key
+        form.value.env_attrs[mappedKey] = value
+      }
     }
-    if (json['图像/视频参数']) {
-      Object.assign(form.value.model_attrs, json['图像/视频参数'])
+
+    // 图像视频参数 → model_attrs
+    if (json['图像视频参数'] || json['图像/视频参数']) {
+      const data = json['图像视频参数'] || json['图像/视频参数']
+      const mapping = {
+        '设备名': 'device_name',
+        '主控型号': 'main_chip',
+        '镜头型号': 'lens_model',
+        '焦距': 'focal_length',
+        '光圈': 'aperture',
+        'Sensor型号': 'sensor_model',
+        '白光灯珠料号': 'white_led',
+        '红外灯珠料号': 'ir_led',
+        '分辨率': 'resolution',
+        '采集帧率': 'frame_rate',
+        '固件版本': 'firmware_version',
+        '壳体信息': 'housing_info',
+        '场景模式': 'scene_mode'
+      }
+      for (const [key, value] of Object.entries(data)) {
+        const mappedKey = mapping[key] || key
+        form.value.model_attrs[mappedKey] = value
+      }
     }
+
+    // ISP参数 → isp_attrs
     if (json['ISP参数']) {
-      Object.assign(form.value.isp_attrs, json['ISP参数'])
+      const mapping = {
+        'Sensor Analog Gain': 'sensor_analog_gain',
+        'Sensor Digital Gain': 'sensor_digital_gain',
+        'Total Gain': 'total_gain',
+        '曝光时间': 'exposure_time',
+        '白平衡 RGain': 'wb_r_gain'
+      }
+      for (const [key, value] of Object.entries(json['ISP参数'])) {
+        const mappedKey = mapping[key] || key
+        form.value.isp_attrs[mappedKey] = value
+      }
     }
 
     showJsonImport.value = false

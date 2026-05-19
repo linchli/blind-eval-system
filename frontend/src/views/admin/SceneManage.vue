@@ -2,7 +2,7 @@
   <div class="scene-manage-page">
     <div class="page-header">
       <h1 class="page-title">🏞️ 场景管理</h1>
-      <button class="btn-primary" @click="showCreateDrawer = true">+ 新增场景</button>
+      <button class="btn-primary" @click="openCreateDrawer">+ 新增场景</button>
     </div>
 
     <div class="scene-list">
@@ -20,7 +20,7 @@
         <span class="col-category">{{ scene.category }}</span>
         <span class="col-subcategory">{{ scene.subcategory }}</span>
         <span class="col-name">{{ scene.name }}</span>
-        <span class="col-folder">{{ scene.folder_name }}</span>
+        <span class="col-folder" :data-full-text="scene.folder_name" :title="scene.folder_name">{{ scene.folder_name }}</span>
         <span class="col-images">{{ scene.image_count }}</span>
         <span class="col-pairs">{{ scene.pair_count }}</span>
         <span class="col-action">
@@ -45,14 +45,17 @@
           <div class="form-group">
             <label>大类 (category)</label>
             <select v-model="form.category" @change="updatePreview" class="form-select">
-              <option value="">请选择</option>
-              <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+              <option value="" disabled selected>请选择</option>
+              <option v-for="cat in categoryOptions" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
             </select>
           </div>
 
           <div class="form-group">
             <label>子类/时段</label>
-            <input v-model="form.subcategory" @input="updatePreview" class="form-input" placeholder="如：白天、傍晚" />
+            <select v-model="form.subcategory" @change="updatePreview" class="form-select">
+              <option value="" disabled selected>请选择</option>
+              <option v-for="sub in subcategoryOptions" :key="sub.value" :value="sub.value">{{ sub.label }}</option>
+            </select>
           </div>
 
           <div class="form-group">
@@ -93,7 +96,24 @@ const editingId = ref(null)
 const saving = ref(false)
 const errorMessage = ref('')
 
-const categoryOptions = ['池塘', '公园', '街道', '室内', '河流', '森林']
+// 1. 单一数据源：维护时只需修改这里
+const categoryOptions = [
+  { label: '池塘', value: '池塘', en: 'pond' },
+  { label: '城市道路', value: '城市道路', en: 'city_road' },
+  { label: '农村道路', value: '农村道路', en: 'rural_road' },
+  { label: '公园树荫', value: '公园树荫', en: 'park_shade' },
+  { label: '城中村道路', value: '城中村道路', en: 'urban_village_road' },
+]
+
+const subcategoryOptions = [
+  { label: '白天', value: '白天', en: 'day' },
+  { label: '傍晚', value: '傍晚', en: 'dusk' },
+  { label: '夜晚', value: '夜晚', en: 'night' },
+]
+
+// 2. 启动时生成映射字典，避免 computed 重复计算
+const categoryMapping = Object.fromEntries(categoryOptions.map(item => [item.value, item.en]))
+const subcategoryMapping = Object.fromEntries(subcategoryOptions.map(item => [item.value, item.en]))
 
 const form = ref({
   category: '',
@@ -109,16 +129,12 @@ const previewName = computed(() => {
 })
 
 const previewFolder = computed(() => {
-  const name = previewName.value.toLowerCase()
-  const mapping = {
-    '池塘': 'pond', '公园': 'park', '街道': 'street',
-    '室内': 'indoor', '河流': 'river', '森林': 'forest',
+  if (!form.value.category || !form.value.subcategory) {
+    return ''
   }
-  const catKey = Object.keys(mapping).find(k => name.includes(k))
-  const catEn = catKey ? mapping[catKey] : 'unknown'
-
-  const subEn = form.value.subcategory.toLowerCase().replace(/\s+/g, '_')
-  return `scene_${catEn}_${subEn}` || ''
+  const catEn = categoryMapping[form.value.category] || 'unknown'
+  const subEn = subcategoryMapping[form.value.subcategory] || 'unknown'
+  return `scene_${catEn}_${subEn}`
 })
 
 function updatePreview() {
@@ -137,6 +153,18 @@ async function fetchScenes() {
   }
 }
 
+function openCreateDrawer() {
+  editingId.value = null
+  form.value = {
+    category: '',
+    subcategory: '',
+    sort_order: 100,
+  }
+  showCreateDrawer.value = true
+  showEditDrawer.value = false
+  errorMessage.value = ''
+}
+
 function editScene(scene) {
   editingId.value = scene.id
   form.value = {
@@ -145,6 +173,7 @@ function editScene(scene) {
     sort_order: scene.sort_order,
   }
   showEditDrawer.value = true
+  showCreateDrawer.value = false
   errorMessage.value = ''
 }
 
@@ -152,7 +181,11 @@ function closeDrawer() {
   showCreateDrawer.value = false
   showEditDrawer.value = false
   editingId.value = null
-  form.value = { category: '', subcategory: '', sort_order: 100 }
+  form.value = {
+    category: '',
+    subcategory: '',
+    sort_order: 100
+  }
   errorMessage.value = ''
 }
 
@@ -161,21 +194,21 @@ async function submitScene() {
     errorMessage.value = '请填写大类和子类'
     return
   }
-
+  
   saving.value = true
   errorMessage.value = ''
-
+  
   try {
     const url = editingId.value ? `/api/admin/scenes/${editingId.value}` : '/api/admin/scenes'
     const method = editingId.value ? 'PUT' : 'POST'
-
+    
     const body = {
       category: form.value.category,
       subcategory: form.value.subcategory,
       sort_order: form.value.sort_order,
       folder_name: previewFolder.value,
     }
-
+    
     const res = await fetch(url, {
       method,
       headers: {
@@ -184,15 +217,16 @@ async function submitScene() {
       },
       body: JSON.stringify(body),
     })
-
+    
     if (!res.ok) {
       const err = await res.json()
       throw new Error(err.detail || '保存失败')
     }
-
+    
     if (window.showAdminToast) {
       window.showAdminToast(editingId.value ? '修改成功' : '创建成功', 'success')
     }
+    
     closeDrawer()
     await fetchScenes()
   } catch (e) {
@@ -228,16 +262,35 @@ onMounted(() => {
 }
 
 .btn-primary {
-  padding: 10px 20px; background: #3b82f6; color: #fff;
-  border: none; border-radius: 8px; font-size: 14px;
-  font-weight: 600; cursor: pointer; transition: all 0.2s;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-.btn-primary:hover:not(:disabled) { background: #2563eb; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-cancel {
-  padding: 10px 20px; background: #fff; color: #64748b;
-  border: 1px solid #e2e8f0; border-radius: 8px;
-  font-size: 14px; font-weight: 600; cursor: pointer;
+  padding: 10px 20px;
+  background: #fff;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .scene-list {
@@ -249,7 +302,7 @@ onMounted(() => {
 
 .scene-item {
   display: grid;
-  grid-template-columns: 100px 100px 150px 150px 80px 80px 80px;
+  grid-template-columns: 100px 100px 150px 200px 80px 80px 80px;
   gap: 16px;
   padding: 16px;
   border-bottom: 1px solid #f1f5f9;
@@ -262,21 +315,66 @@ onMounted(() => {
   color: #64748b;
 }
 
-.col-category, .col-subcategory, .col-name, .col-folder,
-.col-images, .col-pairs {
+.col-category, .col-subcategory, .col-name, .col-folder, .col-images, .col-pairs {
   font-size: 14px;
   color: #374151;
 }
 
-.col-name { color: #374151; font-size: 14px; }
-.col-folder { color: #374151; ; font-size: 14px; }
-.col-action { color: #374151; ; font-size: 14px; }
+/* 目录列特殊处理：文本溢出显示省略号 */
+.col-folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+  position: relative;
+}
+
+.col-folder:hover::after {
+  content: attr(data-full-text);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.col-name {
+  color: #374151;
+  font-size: 14px;
+}
+
+.col-folder {
+  color: #374151;
+  font-size: 14px;
+}
+
+.col-action {
+  color: #374151;
+  font-size: 14px;
+}
 
 .btn-sm {
-  padding: 6px 12px; border-radius: 6px; font-size: 12px;
-  border: 1px solid #e2e8f0; background: #fff; cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
 }
-.btn-edit:hover { background: #eff6ff; border-color: #3b82f6; color: #3b82f6; }
+
+.btn-edit:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
 
 .empty-tip {
   grid-column: 1 / -1;
@@ -289,7 +387,10 @@ onMounted(() => {
 /* 抽屉样式 */
 .drawer-overlay {
   position: fixed;
-  top: 0; right: 0; bottom: 0; left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(0,0,0,0.5);
   display: flex;
   justify-content: flex-end;
@@ -313,13 +414,19 @@ onMounted(() => {
 }
 
 .drawer-header h2 {
-  font-size: 16px; margin: 0; color: #1e40af;
+  font-size: 16px;
+  margin: 0;
+  color: #1e40af;
 }
 
 .btn-icon {
-  width: 28px; height: 28px;
-  border: none; background: none;
-  font-size: 18px; cursor: pointer; color: #64748b;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #64748b;
 }
 
 .drawer-body {
@@ -393,13 +500,19 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .drawer-content { width: 100%; }
+  .drawer-content {
+    width: 100%;
+  }
   .scene-item {
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 12px;
   }
-  .scene-item > span { grid-column: auto; }
-  .scene-item.header { display: none; }
+  .scene-item > span {
+    grid-column: auto;
+  }
+  .scene-item.header {
+    display: none;
+  }
 }
 </style>

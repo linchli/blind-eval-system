@@ -38,7 +38,6 @@ async def get_scenes(
         ))
     return result
 
-
 @router.post("/scenes", response_model=SceneOut)
 async def create_scene(
     body: SceneCreate,
@@ -50,9 +49,7 @@ async def create_scene(
     if db.query(Scene).filter(Scene.name == name).first():
         raise HTTPException(status_code=400, detail=f"场景 '{name}' 已存在")
 
-    # folder_name 由前端传入或自动生成，这里用 name 的简化版本
-    # 前端会传 folder_name 字段，若未传则用 name
-    folder_name = getattr(body, 'folder_name', None) or f"scene_{name}"
+    folder_name = body.folder_name or f"scene_{body.category,}_{body.subcategory}"
 
     if db.query(Scene).filter(Scene.folder_name == folder_name).first():
         raise HTTPException(status_code=400, detail=f"目录名 '{folder_name}' 已存在")
@@ -140,8 +137,10 @@ async def get_models(
         result.append(DeviceModelOut(
             id=m.id, name=m.name, folder_name=m.folder_name,
             main_chip=m.main_chip or "", lens_model=m.lens_model or "",
-            sensor_model=m.sensor_model or "", focal_length=m.focal_length or "",
-            resolution=m.resolution or "", housing_info=m.housing_info or "",
+            sensor_model=m.sensor_model or "", aperture=m.aperture or "",
+            focal_length=m.focal_length or "", resolution=m.resolution or "",
+            frame_rate=m.frame_rate or "", white_led=m.white_led or "",
+            ir_led=m.ir_led or "", housing_info=m.housing_info or "",
             device_attrs=m.device_attrs or {}, features=m.features or "",
             image_count=image_count,
         ))
@@ -168,8 +167,12 @@ async def create_model(
         main_chip=body.main_chip,
         lens_model=body.lens_model,
         sensor_model=body.sensor_model,
+        aperture=body.aperture,
         focal_length=body.focal_length,
         resolution=body.resolution,
+        frame_rate=body.frame_rate,
+        white_led=body.white_led,
+        ir_led=body.ir_led,
         housing_info=body.housing_info,
         device_attrs=body.device_attrs or {},
         features=body.features or "",
@@ -181,8 +184,10 @@ async def create_model(
     return DeviceModelOut(
         id=model.id, name=model.name, folder_name=model.folder_name,
         main_chip=model.main_chip or "", lens_model=model.lens_model or "",
-        sensor_model=model.sensor_model or "", focal_length=model.focal_length or "",
-        resolution=model.resolution or "", housing_info=model.housing_info or "",
+        sensor_model=model.sensor_model or "", aperture=model.aperture or "",
+        focal_length=model.focal_length or "", resolution=model.resolution or "",
+        frame_rate=model.frame_rate or "", white_led=model.white_led or "",
+        ir_led=model.ir_led or "", housing_info=model.housing_info or "",
         device_attrs=model.device_attrs or {}, features=model.features or "",
         image_count=0,
     )
@@ -208,8 +213,8 @@ async def update_model(
         model.name = body.name
         model.folder_name = _generate_model_folder(body.name)
 
-    for field in ["main_chip", "lens_model", "sensor_model", "focal_length",
-                   "resolution", "housing_info", "features"]:
+    for field in ["main_chip", "lens_model", "sensor_model", "aperture", "focal_length",
+                   "resolution", "frame_rate", "white_led", "ir_led", "housing_info", "features"]:
         val = getattr(body, field, None)
         if val is not None:
             setattr(model, field, val)
@@ -225,8 +230,10 @@ async def update_model(
     return DeviceModelOut(
         id=model.id, name=model.name, folder_name=model.folder_name,
         main_chip=model.main_chip or "", lens_model=model.lens_model or "",
-        sensor_model=model.sensor_model or "", focal_length=model.focal_length or "",
-        resolution=model.resolution or "", housing_info=model.housing_info or "",
+        sensor_model=model.sensor_model or "", aperture=model.aperture or "",
+        focal_length=model.focal_length or "", resolution=model.resolution or "",
+        frame_rate=model.frame_rate or "", white_led=model.white_led or "",
+        ir_led=model.ir_led or "", housing_info=model.housing_info or "",
         device_attrs=model.device_attrs or {}, features=model.features or "",
         image_count=image_count,
     )

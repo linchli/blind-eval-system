@@ -9,6 +9,7 @@ class SceneCreate(BaseModel):
     category: str
     subcategory: str
     sort_order: int = 100
+    folder_name: str | None = None
 
 
 class SceneUpdate(BaseModel):

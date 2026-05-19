@@ -34,10 +34,10 @@ THUMB_DIR.mkdir(parents=True, exist_ok=True)
 print(f"📁 项目根目录: {BASE_DIR}, 📁 上传目录: {UPLOAD_DIR}, 📁 图片目录: {IMAGE_DIR}, 📁 缩略图目录: {THUMB_DIR}")
 
 # ==================== 评测参数 ====================
-DEFAULT_BATCH_SIZE = 6
-MAX_BATCH_SIZE = 30
-DAILY_LIMIT = 60
-REST_AFTER_BATCHES = 2
+DEFAULT_BATCH_SIZE = 40
+MAX_BATCH_SIZE = 45
+DAILY_LIMIT = 100
+REST_AFTER_BATCHES = 3
 MIN_STAY_SECONDS = 3
 
 # ==================== 评分映射 ====================

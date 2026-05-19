@@ -157,7 +157,7 @@
       </svg>
       <h2>评测任务准备</h2>
       <p>待评测图像对：{{ store.remainingCount }} 对</p>
-      <p class="tip">建议单次评测：20 对，约 10-15 分钟</p>
+      <p class="tip">建议单次评测：40 对，约 6-10 分钟</p>
       <div class="info-cards">
         <div class="info-card">
           <span class="info-num">{{ store.totalPairs }}</span>

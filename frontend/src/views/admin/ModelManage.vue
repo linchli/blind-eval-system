@@ -27,6 +27,13 @@
           <option v-for="focal in focalOptions" :key="focal" :value="focal">{{ focal }}</option>
         </select>
       </div>
+      <div class="filter-item">
+        <label>光圈：</label>
+        <select v-model="filters.aperture" @change="fetchModels" class="form-select">
+          <option value="">全部</option>
+          <option v-for="apt in apertureOptions" :key="apt" :value="apt">{{ apt }}</option>
+        </select>
+      </div>
     </div>
 
     <div class="model-list">
@@ -34,7 +41,9 @@
         <span class="col-name">机型名称</span>
         <span class="col-chip">主控</span>
         <span class="col-sensor">Sensor</span>
+        <span class="col-aperture">光圈</span>
         <span class="col-focal">焦距</span>
+        <span class="col-resolution">分辨率</span>
         <span class="col-count">图像数</span>
         <span class="col-action">操作</span>
       </div>
@@ -43,7 +52,9 @@
         <span class="col-name">{{ model.name }}</span>
         <span class="col-chip">{{ model.main_chip }}</span>
         <span class="col-sensor">{{ model.sensor_model }}</span>
+        <span class="col-aperture">{{ model.aperture }}</span>
         <span class="col-focal">{{ model.focal_length }}</span>
+        <span class="col-resolution">{{ model.resolution }}</span>
         <span class="col-count">{{ model.image_count }}</span>
         <span class="col-action">
           <button class="btn-sm btn-edit" @click="editModel(model)">编辑</button>
@@ -69,7 +80,21 @@
           </div>
 
           <div v-if="showImportJson" class="import-json-box">
-            <textarea v-model="jsonInput" class="json-textarea" placeholder='请粘贴完整的机型配置 JSON，如：{"main_chip":"Hi3516EV300","光圈":"f/1.2"}'></textarea>
+            <textarea v-model="jsonInput" class="json-textarea" placeholder='请粘贴完整的机型配置 JSON，如：
+{
+  "设备名": "632-A4 12.0",
+  "主控型号": "Hi3519AV100",
+  "镜头型号": "LS-1235",
+  "Sensor型号": "IMX335",
+  "光圈": "f/1.6",
+  "焦距": "12.0mm",
+  "分辨率": "2592×1944",
+  "帧率": "30fps",
+  "白光灯珠料号": "LED-W-08",
+  "红外灯珠料号": "LED-R-08",
+  "壳体信息": "SH-632-B",
+  "固件版本": "v4.0"
+}'></textarea>
             <div class="import-actions">
               <button class="btn-cancel" @click="showImportJson = false">取消</button>
               <button class="btn-primary" @click="importJson">确认导入</button>
@@ -83,7 +108,7 @@
             <input v-model="form.name" class="form-input" />
           </div>
 
-          <h4 class="section-title">── 核心参数 (高频筛选■) ───</h4>
+          <h4 class="section-title">── 核心参数 (高频筛选) ───</h4>
           <div class="form-row">
             <div class="form-group flex1">
               <label>主控型号</label>
@@ -96,22 +121,42 @@
           </div>
           <div class="form-row">
             <div class="form-group flex1">
-              <label>Sensor</label>
+              <label>Sensor型号</label>
               <input v-model="form.sensor_model" class="form-input" />
             </div>
             <div class="form-group flex1">
-              <label>焦距</label>
-              <input v-model="form.focal_length" class="form-input" />
+              <label>光圈</label>
+              <input v-model="form.aperture" class="form-input" placeholder="如 f/1.6" />
             </div>
           </div>
           <div class="form-row">
             <div class="form-group flex1">
+              <label>焦距</label>
+              <input v-model="form.focal_length" class="form-input" placeholder="如 2.8mm" />
+            </div>
+            <div class="form-group flex1">
               <label>分辨率</label>
-              <input v-model="form.resolution" class="form-input" />
+              <input v-model="form.resolution" class="form-input" placeholder="如 1920×1080" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex1">
+              <label>帧率</label>
+              <input v-model="form.frame_rate" class="form-input" placeholder="如 30fps" />
             </div>
             <div class="form-group flex1">
               <label>壳体信息</label>
               <input v-model="form.housing_info" class="form-input" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex1">
+              <label>白光灯珠料号</label>
+              <input v-model="form.white_led" class="form-input" placeholder="如 LED-W-08" />
+            </div>
+            <div class="form-group flex1">
+              <label>红外灯珠料号</label>
+              <input v-model="form.ir_led" class="form-input" placeholder="如 LED-R-08" />
             </div>
           </div>
 
@@ -120,16 +165,6 @@
             <div class="form-group flex1">
               <label>固件版本</label>
               <input v-model="form.device_attrs.firmware_version" class="form-input" />
-            </div>
-            <div class="form-group flex1">
-              <label>光圈</label>
-              <input v-model="form.device_attrs.aperture" class="form-input" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group flex1">
-              <label>帧率</label>
-              <input v-model="form.device_attrs.frame_rate" class="form-input" />
             </div>
             <div class="form-group flex1">
               <label>场景模式</label>
@@ -195,11 +230,13 @@ const filters = ref({
   main_chip: '',
   sensor_model: '',
   focal_length: '',
+  aperture: '',
 })
 
 const mainChipOptions = ref([])
 const sensorOptions = ref([])
 const focalOptions = ref([])
+const apertureOptions = ref([])
 
 const customParams = ref([])
 
@@ -208,13 +245,15 @@ const form = ref({
   main_chip: '',
   lens_model: '',
   sensor_model: '',
+  aperture: '',
   focal_length: '',
   resolution: '',
+  frame_rate: '',
+  white_led: '',
+  ir_led: '',
   housing_info: '',
   device_attrs: {
     firmware_version: '',
-    aperture: '',
-    frame_rate: '',
     scene_mode: '',
   },
   features: '',
@@ -225,6 +264,7 @@ const filteredModels = computed(() => {
     if (filters.value.main_chip && m.main_chip !== filters.value.main_chip) return false
     if (filters.value.sensor_model && m.sensor_model !== filters.value.sensor_model) return false
     if (filters.value.focal_length && m.focal_length !== filters.value.focal_length) return false
+    if (filters.value.aperture && m.aperture !== filters.value.aperture) return false
     return true
   })
 })
@@ -240,6 +280,7 @@ async function fetchModels() {
     mainChipOptions.value = [...new Set(data.map(m => m.main_chip).filter(Boolean))]
     sensorOptions.value = [...new Set(data.map(m => m.sensor_model).filter(Boolean))]
     focalOptions.value = [...new Set(data.map(m => m.focal_length).filter(Boolean))]
+    apertureOptions.value = [...new Set(data.map(m => m.aperture).filter(Boolean))]
   } catch (e) {
     console.error('获取机型失败:', e)
     if (window.showAdminToast) window.showAdminToast(e.message || '获取机型失败', 'error')
@@ -253,8 +294,12 @@ function editModel(model) {
     main_chip: model.main_chip || '',
     lens_model: model.lens_model || '',
     sensor_model: model.sensor_model || '',
+    aperture: model.aperture || '',
     focal_length: model.focal_length || '',
     resolution: model.resolution || '',
+    frame_rate: model.frame_rate || '',
+    white_led: model.white_led || '',
+    ir_led: model.ir_led || '',
     housing_info: model.housing_info || '',
     device_attrs: { ...(model.device_attrs || {}) },
     features: model.features || '',
@@ -262,8 +307,7 @@ function editModel(model) {
 
   // 提取已知字段外自定义参数
   customParams.value = []
-  const knownFields = ['main_chip', 'lens_model', 'sensor_model', 'focal_length',
-                      'resolution', 'housing_info', 'firmware_version', 'aperture', 'frame_rate', 'scene_mode']
+  const knownFields = ['firmware_version', 'scene_mode']
   for (const [key, value] of Object.entries(model.device_attrs || {})) {
     if (!knownFields.includes(key)) {
       customParams.value.push({ key, value })
@@ -277,19 +321,37 @@ function editModel(model) {
 function importJson() {
   try {
     const json = JSON.parse(jsonInput.value)
+
+    // 中文字段名到表单字段的映射
+    const fieldMapping = {
+      '设备名': 'name',
+      '主控型号': 'main_chip',
+      '镜头型号': 'lens_model',
+      'Sensor型号': 'sensor_model',
+      '光圈': 'aperture',
+      '焦距': 'focal_length',
+      '分辨率': 'resolution',
+      '帧率': 'frame_rate',
+      '白光灯珠料号': 'white_led',
+      '红外灯珠料号': 'ir_led',
+      '壳体信息': 'housing_info',
+      // 扩展参数
+      '固件版本': 'firmware_version',
+      '场景模式': 'scene_mode',
+    }
+
     for (const [key, value] of Object.entries(json)) {
-      // 匹配已知字段
-      if (key === 'main_chip' || key === '主控型号') form.value.main_chip = String(value)
-      else if (key === 'lens_model' || key === '镜头型号') form.value.lens_model = String(value)
-      else if (key === 'sensor_model' || key === 'Sensor型号') form.value.sensor_model = String(value)
-      else if (key === 'focal_length' || key === '焦距') form.value.focal_length = String(value)
-      else if (key === 'resolution' || key === '分辨率') form.value.resolution = String(value)
-      else if (key === 'housing_info' || key === '壳体信息') form.value.housing_info = String(value)
-      else if (key === 'firmware_version' || key === '固件版本') form.value.device_attrs.firmware_version = String(value)
-      else if (key === 'aperture' || key === '光圈') form.value.device_attrs.aperture = String(value)
-      else if (key === 'frame_rate' || key === '帧率') form.value.device_attrs.frame_rate = String(value)
-      else if (key === 'scene_mode' || key === '场景模式') form.value.device_attrs.scene_mode = String(value)
-      else {
+      const mappedField = fieldMapping[key] || key
+
+      if (mappedField === 'name') {
+        form.value.name = String(value)
+      } else if (mappedField === 'firmware_version') {
+        form.value.device_attrs.firmware_version = String(value)
+      } else if (mappedField === 'scene_mode') {
+        form.value.device_attrs.scene_mode = String(value)
+      } else if (mappedField in form.value) {
+        form.value[mappedField] = String(value)
+      } else {
         // 无法匹配的字段作为自定义参数
         const existingIdx = customParams.value.findIndex(p => p.key === key)
         if (existingIdx >= 0) {
@@ -322,8 +384,9 @@ function closeDrawer() {
   editingId.value = null
   form.value = {
     name: '', main_chip: '', lens_model: '', sensor_model: '',
-    focal_length: '', resolution: '', housing_info: '',
-    device_attrs: { firmware_version: '', aperture: '', frame_rate: '', scene_mode: '' },
+    aperture: '', focal_length: '', resolution: '',
+    frame_rate: '', white_led: '', ir_led: '', housing_info: '',
+    device_attrs: { firmware_version: '', scene_mode: '' },
     features: '',
   }
   customParams.value = []
@@ -344,8 +407,6 @@ async function submitModel() {
     // 构建完整的 device_attrs
     const fullDeviceAttrs = {
       firmware_version: form.value.device_attrs.firmware_version || '',
-      aperture: form.value.device_attrs.aperture || '',
-      frame_rate: form.value.device_attrs.frame_rate || '',
       scene_mode: form.value.device_attrs.scene_mode || '',
     }
     for (const param of customParams.value) {
@@ -362,8 +423,12 @@ async function submitModel() {
       main_chip: form.value.main_chip,
       lens_model: form.value.lens_model,
       sensor_model: form.value.sensor_model,
+      aperture: form.value.aperture,
       focal_length: form.value.focal_length,
       resolution: form.value.resolution,
+      frame_rate: form.value.frame_rate,
+      white_led: form.value.white_led,
+      ir_led: form.value.ir_led,
       housing_info: form.value.housing_info,
       device_attrs: fullDeviceAttrs,
       features: form.value.features,
@@ -447,6 +512,7 @@ onMounted(() => {
 
 .filter-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   background: white;
   padding: 16px;
@@ -462,7 +528,7 @@ onMounted(() => {
 }
 
 .filter-item label {
-  font-size: 13px; color: #374151; font-weight: 500; white-space: nowrap; 
+  font-size: 13px; color: #374151; font-weight: 500; white-space: nowrap;
 }
 
 .form-select, .form-input, .form-textarea {
@@ -488,8 +554,8 @@ onMounted(() => {
 
 .model-item {
   display: grid;
-  grid-template-columns: 200px 120px 100px 80px 80px 80px;
-  gap: 16px;
+  grid-template-columns: 180px 100px 90px 70px 80px 100px 70px 80px;
+  gap: 12px;
   padding: 14px;
   border-bottom: 1px solid #f1f5f9;
   align-items: center;
@@ -502,7 +568,7 @@ onMounted(() => {
 }
 
 .col-name { font-size: 14px; color: #374151; font-weight: 500; }
-.col-chip, .col-sensor, .col-focal, .col-count {
+.col-chip, .col-sensor, .col-aperture, .col-focal, .col-resolution, .col-count {
   font-size: 13px; color: #64748b;
 }
 
@@ -540,7 +606,7 @@ onMounted(() => {
 }
 
 .drawer-content.wide {
-  width: 600px;
+  width: 650px;
 }
 
 .drawer-header {
@@ -614,9 +680,12 @@ onMounted(() => {
 
 .json-textarea {
   width: 100%;
-  height: 120px;
+  height: 200px;
   font-family: monospace;
   font-size: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
 }
 
 .import-actions {
