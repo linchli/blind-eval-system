@@ -4,6 +4,19 @@
 
     <div class="stats-grid">
       <div class="stat-card">
+        <div class="stat-icon" style="background: #fce7f3;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#db2777" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.user_count }}</span>
+          <span class="stat-label">用户数</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
         <div class="stat-icon" style="background: #dbeafe;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -40,21 +53,6 @@
         <div class="stat-info">
           <span class="stat-value">{{ stats.pair_count }}</span>
           <span class="stat-label">图像对</span>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #fce7f3;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#db2777" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0 0-4-4H5a4 4 0 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value">{{ stats.eval_count }}</span>
-          <span class="stat-label">已评测</span>
         </div>
       </div>
     </div>
