@@ -1,7 +1,7 @@
 """
 评测相关 ORM 模型（EvalSession + Evaluation）
 """
-from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey, JSON, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey, JSON, UniqueConstraint, SmallInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -34,9 +34,7 @@ class Evaluation(Base):
     score_label = Column(String(20), nullable=False)
     score_a = Column(Float, nullable=False)
     score_b = Column(Float, nullable=False)
-    left_model_key = Column(String(1), nullable=False)
-    right_model_key = Column(String(1), nullable=False)
-    view_duration_ms = Column(Integer, default=0)
+    is_repeat = Column(SmallInteger, default=0, nullable=False, comment="是否为重复图对的第2次评测 0=首次 1=重复")
     status = Column(Enum("draft", "submitted"), default="draft", nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     submitted_at = Column(DateTime, nullable=True)
@@ -46,5 +44,5 @@ class Evaluation(Base):
     session = relationship("EvalSession", back_populates="evaluations")
 
     __table_args__ = (
-        UniqueConstraint("user_id", "pair_id", name="uq_user_pair"),
+        UniqueConstraint("user_id", "pair_id", "is_repeat", name="uq_user_pair_repeat"),
     )

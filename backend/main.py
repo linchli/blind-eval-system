@@ -19,7 +19,7 @@ from app.core.config import UPLOAD_DIR, IMAGE_DIR, THUMB_DIR
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import hash_password
 from app.models import User, Scene, DeviceModel, Image, ImagePair, EvalSession, Evaluation
-from app.api import auth, admin, image, eval as eval_router, stats
+from app.api import auth, admin, image, eval as eval_router, stats, cleaning
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
@@ -39,8 +39,6 @@ def _seed_default_users():
         defaults = [
             ("admin", "admin123", "admin", "管理员"),
             ("evaluator1", "eval123", "evaluator", "评审员1"),
-            ("evaluator2", "eval123", "evaluator", "评审员2"),
-            ("guest", "guest123", "guest", "访客"),
         ]
         for username, pwd, role, display in defaults:
             if not db.query(User).filter(User.username == username).first():
@@ -83,6 +81,7 @@ app.include_router(admin.router)
 app.include_router(image.router)
 app.include_router(eval_router.router)
 app.include_router(stats.router)
+app.include_router(cleaning.router)
 
 
 @app.get("/api/health")

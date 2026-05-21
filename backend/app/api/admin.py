@@ -1,5 +1,5 @@
 """
-管理路由：场景/机型 CRUD
+管理路由：场景/设备 CRUD
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -115,53 +115,53 @@ async def update_scene(
     )
 
 
-# ==================== 机型管理 ====================
+# ==================== 设备管理 ====================
 
-def _generate_model_folder(name: str) -> str:
-    """从机型名称生成 folder_name"""
+def _generate_device_folder(name: str) -> str:
+    """从设备名称生成 folder_name"""
     import re
     folder = name.replace(" ", "_")
     folder = re.sub(r'[^a-zA-Z0-9_\-]', '', folder)
-    return f"model_{folder}" if folder else "model_unknown"
+    return f"device_{folder}" if folder else "device_unknown"
 
 
-@router.get("/models", response_model=list[DeviceModelOut])
-async def get_models(
+@router.get("/devices", response_model=list[DeviceModelOut])
+async def get_devices(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    models = db.query(DeviceModel).all()
+    devices = db.query(DeviceModel).all()
     result = []
-    for m in models:
-        image_count = db.query(Image).filter(Image.model_id == m.id).count()
+    for d in devices:
+        image_count = db.query(Image).filter(Image.device_id == d.id).count()
         result.append(DeviceModelOut(
-            id=m.id, name=m.name, folder_name=m.folder_name,
-            main_chip=m.main_chip or "", lens_model=m.lens_model or "",
-            sensor_model=m.sensor_model or "", aperture=m.aperture or "",
-            focal_length=m.focal_length or "", resolution=m.resolution or "",
-            frame_rate=m.frame_rate or "", white_led=m.white_led or "",
-            ir_led=m.ir_led or "", housing_info=m.housing_info or "",
-            device_attrs=m.device_attrs or {}, features=m.features or "",
+            id=d.id, name=d.name, folder_name=d.folder_name,
+            main_chip=d.main_chip or "", lens_model=d.lens_model or "",
+            sensor_model=d.sensor_model or "", aperture=d.aperture or "",
+            focal_length=d.focal_length or "", resolution=d.resolution or "",
+            frame_rate=d.frame_rate or "", white_led=d.white_led or "",
+            ir_led=d.ir_led or "", housing_info=d.housing_info or "",
+            device_attrs=d.device_attrs or {}, features=d.features or "",
             image_count=image_count,
         ))
     return result
 
 
-@router.post("/models", response_model=DeviceModelOut)
-async def create_model(
+@router.post("/devices", response_model=DeviceModelOut)
+async def create_device(
     body: DeviceModelCreate,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     if db.query(DeviceModel).filter(DeviceModel.name == body.name).first():
-        raise HTTPException(status_code=400, detail=f"机型 '{body.name}' 已存在")
+        raise HTTPException(status_code=400, detail=f"设备 '{body.name}' 已存在")
 
-    folder_name = _generate_model_folder(body.name)
+    folder_name = _generate_device_folder(body.name)
 
     if db.query(DeviceModel).filter(DeviceModel.folder_name == folder_name).first():
         raise HTTPException(status_code=400, detail=f"目录名 '{folder_name}' 已存在")
 
-    model = DeviceModel(
+    device = DeviceModel(
         name=body.name,
         folder_name=folder_name,
         main_chip=body.main_chip,
@@ -177,64 +177,64 @@ async def create_model(
         device_attrs=body.device_attrs or {},
         features=body.features or "",
     )
-    db.add(model)
+    db.add(device)
     db.commit()
-    db.refresh(model)
+    db.refresh(device)
 
     return DeviceModelOut(
-        id=model.id, name=model.name, folder_name=model.folder_name,
-        main_chip=model.main_chip or "", lens_model=model.lens_model or "",
-        sensor_model=model.sensor_model or "", aperture=model.aperture or "",
-        focal_length=model.focal_length or "", resolution=model.resolution or "",
-        frame_rate=model.frame_rate or "", white_led=model.white_led or "",
-        ir_led=model.ir_led or "", housing_info=model.housing_info or "",
-        device_attrs=model.device_attrs or {}, features=model.features or "",
+        id=device.id, name=device.name, folder_name=device.folder_name,
+        main_chip=device.main_chip or "", lens_model=device.lens_model or "",
+        sensor_model=device.sensor_model or "", aperture=device.aperture or "",
+        focal_length=device.focal_length or "", resolution=device.resolution or "",
+        frame_rate=device.frame_rate or "", white_led=device.white_led or "",
+        ir_led=device.ir_led or "", housing_info=device.housing_info or "",
+        device_attrs=device.device_attrs or {}, features=device.features or "",
         image_count=0,
     )
 
 
-@router.put("/models/{model_id}", response_model=DeviceModelOut)
-async def update_model(
-    model_id: int,
+@router.put("/devices/{device_id}", response_model=DeviceModelOut)
+async def update_device(
+    device_id: int,
     body: DeviceModelUpdate,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    model = db.query(DeviceModel).filter(DeviceModel.id == model_id).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="机型不存在")
+    device = db.query(DeviceModel).filter(DeviceModel.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="设备不存在")
 
     if body.name is not None:
         existing = db.query(DeviceModel).filter(
-            DeviceModel.name == body.name, DeviceModel.id != model_id
+            DeviceModel.name == body.name, DeviceModel.id != device_id
         ).first()
         if existing:
-            raise HTTPException(status_code=400, detail=f"机型名 '{body.name}' 已被使用")
-        model.name = body.name
-        model.folder_name = _generate_model_folder(body.name)
+            raise HTTPException(status_code=400, detail=f"设备名 '{body.name}' 已被使用")
+        device.name = body.name
+        device.folder_name = _generate_device_folder(body.name)
 
     for field in ["main_chip", "lens_model", "sensor_model", "aperture", "focal_length",
                    "resolution", "frame_rate", "white_led", "ir_led", "housing_info", "features"]:
         val = getattr(body, field, None)
         if val is not None:
-            setattr(model, field, val)
+            setattr(device, field, val)
 
     if body.device_attrs is not None:
-        model.device_attrs = body.device_attrs
+        device.device_attrs = body.device_attrs
 
     db.commit()
-    db.refresh(model)
+    db.refresh(device)
 
-    image_count = db.query(Image).filter(Image.model_id == model.id).count()
+    image_count = db.query(Image).filter(Image.device_id == device.id).count()
 
     return DeviceModelOut(
-        id=model.id, name=model.name, folder_name=model.folder_name,
-        main_chip=model.main_chip or "", lens_model=model.lens_model or "",
-        sensor_model=model.sensor_model or "", aperture=model.aperture or "",
-        focal_length=model.focal_length or "", resolution=model.resolution or "",
-        frame_rate=model.frame_rate or "", white_led=model.white_led or "",
-        ir_led=model.ir_led or "", housing_info=model.housing_info or "",
-        device_attrs=model.device_attrs or {}, features=model.features or "",
+        id=device.id, name=device.name, folder_name=device.folder_name,
+        main_chip=device.main_chip or "", lens_model=device.lens_model or "",
+        sensor_model=device.sensor_model or "", aperture=device.aperture or "",
+        focal_length=device.focal_length or "", resolution=device.resolution or "",
+        frame_rate=device.frame_rate or "", white_led=device.white_led or "",
+        ir_led=device.ir_led or "", housing_info=device.housing_info or "",
+        device_attrs=device.device_attrs or {}, features=device.features or "",
         image_count=image_count,
     )
 

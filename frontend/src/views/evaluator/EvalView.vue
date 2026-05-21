@@ -111,6 +111,20 @@
       </div>
     </transition>
 
+    <!-- ===== 跳过确认弹窗 ===== -->
+    <transition name="modal-fade">
+      <div v-if="showSkipConfirm" class="confirm-overlay" @click.self="showSkipConfirm = false">
+        <div class="confirm-box">
+          <h3>确认跳过当前图对</h3>
+          <p>当前第 {{ store.cursor + 1 }} 组还未评测，确定要跳过吗？</p>
+          <div class="confirm-actions">
+            <button class="btn-cancel" @click="showSkipConfirm = false">取消</button>
+            <button class="btn-confirm" @click="confirmSkip">确定跳过</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- ===== LOADING ===== -->
     <div v-if="store.sessionState === 'LOADING'" class="center-msg">
       <div class="spinner"></div>
@@ -156,22 +170,7 @@
         <line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
       <h2>评测任务准备</h2>
-      <p>待评测图像对：{{ store.remainingCount }} 对</p>
-      <p class="tip">建议单次评测：40 对，约 6-10 分钟</p>
-      <div class="info-cards">
-        <div class="info-card">
-          <span class="info-num">{{ store.totalPairs }}</span>
-          <span class="info-label">总图对</span>
-        </div>
-        <div class="info-card">
-          <span class="info-num">{{ store.evaluatedCount }}</span>
-          <span class="info-label">已完成</span>
-        </div>
-        <div class="info-card">
-          <span class="info-num">{{ store.remainingCount }}</span>
-          <span class="info-label">待评测</span>
-        </div>
-      </div>
+      <p>总剩余待评测图像对：{{ store.remainingCount }} 对</p>
       <div class="action-buttons">
         <button class="btn-primary" @click="handleStart">开始评测</button>
         <button class="btn-sm" @click="handleLogout">退出</button>
@@ -190,7 +189,7 @@
       </svg>
       <h2>您有一轮评测进行中</h2>
       <div class="resumable-info" v-if="store.statusInfo?.active_session">
-        <p>已评：{{ store.statusInfo.active_session.evaluated_in_session }} / {{ store.statusInfo.active_session.batch_size }} 组</p>
+        <p>该轮已评：{{ store.statusInfo.active_session.evaluated_in_session }} / {{ store.statusInfo.active_session.batch_size }} 组</p>
         <div class="mini-progress">
           <div class="mini-progress-bar"
                :style="{ width: (store.statusInfo.active_session.evaluated_in_session / store.statusInfo.active_session.batch_size * 100) + '%' }">
@@ -387,6 +386,7 @@ const store = useEvalStore()
 const helpOpen = ref(false)
 const showRestConfirm = ref(false)
 const showSubmitConfirm = ref(false)
+const showSkipConfirm = ref(false)
 const lastSide = ref('')
 const currentScale = ref(1.0)
 let autoAdvanceTimer = null
@@ -488,9 +488,17 @@ async function handleScore(s) {
     // 评分后自动跳下一个未评对
     if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer)
     autoAdvanceTimer = setTimeout(() => {
-      const nextCursor = store.nextUnscoredCursor
-      if (nextCursor < store.sessionTotalCount - 1 && nextCursor !== store.cursor) {
-        store.goTo(nextCursor)
+      // 直接在本地计算下一个未评对，避免依赖 computed 属性
+      const pairList = store.pairList
+      const scoreMap = store.scoreMap
+      for (let i = 0; i < pairList.length; i++) {
+        const key = `${pairList[i].pair_id}_${i}`
+        if (scoreMap[key] === undefined) {
+          if (i !== store.cursor) {
+            store.goTo(i)
+          }
+          break
+        }
       }
       autoAdvanceTimer = null
     }, 350)
@@ -505,6 +513,17 @@ function handlePrev() {
 }
 
 function handleNext() {
+  // 如果当前组未评测，弹窗确认
+  if (!isScored.value) {
+    showSkipConfirm.value = true
+    return
+  }
+  store.goNext()
+  lastSide.value = ''
+}
+
+function confirmSkip() {
+  showSkipConfirm.value = false
   store.goNext()
   lastSide.value = ''
 }
@@ -761,16 +780,6 @@ onUnmounted(() => {
 
 /* ===== READY_TO_START 卡片 ===== */
 .ready-box .tip { font-size: 13px; color: #94a3b8; margin-top: 4px; }
-.info-cards {
-  display: flex; gap: 16px; margin: 20px 0;
-}
-.info-card {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 16px 24px; background: #f8fafc;
-  border: 1px solid #e2e8f0; border-radius: 10px;
-}
-.info-num { font-size: 28px; font-weight: 700; color: #1e40af; }
-.info-label { font-size: 12px; color: #64748b; margin-top: 4px; }
 
 /* ===== RESUMABLE 卡片 ===== */
 .resumable-box .tip { font-size: 13px; color: #94a3b8; margin-top: 4px; }
@@ -1042,7 +1051,6 @@ onUnmounted(() => {
   .top-bar { padding: 8px 12px; }
   .eval-main { padding: 10px 12px; }
   .help-popover { width: 290px; left: 12px; }
-  .info-cards { flex-wrap: wrap; justify-content: center; }
   .score-dist { flex-wrap: wrap; justify-content: center; }
 }
 </style>

@@ -41,9 +41,6 @@ class EvaluationSubmitRequest(BaseModel):
     session_id: int
     score: str
     score_label: str
-    left_model_key: str
-    right_model_key: str
-    view_duration_ms: int = 0
 
 
 class EvaluationSubmitResponse(BaseModel):
@@ -79,9 +76,6 @@ class EvaluationOut(BaseModel):
     score_label: str
     score_a: float
     score_b: float
-    left_model_key: str
-    right_model_key: str
-    view_duration_ms: int = 0
     created_at: Optional[str] = None
 
 
@@ -108,11 +102,11 @@ class UserConsistency(BaseModel):
     reason: str = ""
 
 
-class ModelScore(BaseModel):
+class DeviceScore(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
-    model_id: int
-    model_name: str
+    device_id: int
+    device_name: str
     median_score: float
     eval_count: int
     rank: int = 0
@@ -131,4 +125,4 @@ class CleaningResult(BaseModel):
     user_consistency: list
     group_discarded_users: list
     final_valid_users: int
-    model_ranking: list
+    device_ranking: list

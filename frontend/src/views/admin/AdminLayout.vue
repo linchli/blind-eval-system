@@ -20,9 +20,9 @@
           <span class="nav-icon">🏞️</span>
           <span class="nav-label">场景管理</span>
         </div>
-        <div class="nav-item" :class="{ active: $route.name === 'ModelManage' }" @click="$router.push('/admin/models')">
+        <div class="nav-item" :class="{ active: $route.name === 'DeviceManage' }" @click="$router.push('/admin/devices')">
           <span class="nav-icon">📷</span>
-          <span class="nav-label">机型管理</span>
+          <span class="nav-label">设备管理</span>
         </div>
         <div class="nav-item" :class="{ active: $route.name === 'ImageManage' }" @click="$router.push('/admin/images')">
           <span class="nav-icon">🖼️</span>

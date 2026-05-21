@@ -36,10 +36,10 @@ export const apiGetScenes = () => request('/api/admin/scenes')
 export const apiCreateScene = (data) => request('/api/admin/scenes', { method: 'POST', body: JSON.stringify(data) })
 export const apiUpdateScene = (id, data) => request(`/api/admin/scenes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 
-// 机型
-export const apiGetModels = () => request('/api/admin/models')
-export const apiCreateModel = (data) => request('/api/admin/models', { method: 'POST', body: JSON.stringify(data) })
-export const apiUpdateModel = (id, data) => request(`/api/admin/models/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+// 设备
+export const apiGetDevices = () => request('/api/admin/devices')
+export const apiCreateDevice = (data) => request('/api/admin/devices', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateDevice = (id, data) => request(`/api/admin/devices/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 
 // 图像
 export const apiGetImages = (params = {}) => {

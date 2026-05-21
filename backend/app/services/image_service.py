@@ -14,10 +14,10 @@ from ..models.scene import Scene
 from ..models.device_model import DeviceModel
 
 
-def save_image_file(file_content: bytes, scene_folder: str, model_folder: str, filename: str) -> str:
+def save_image_file(file_content: bytes, scene_folder: str, device_folder: str, filename: str) -> str:
     """保存图像文件并生成缩略图，返回相对路径"""
     # 确保目录存在
-    dest_dir = IMAGE_DIR / scene_folder / model_folder
+    dest_dir = IMAGE_DIR / scene_folder / device_folder
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     # 保存原图
@@ -28,18 +28,18 @@ def save_image_file(file_content: bytes, scene_folder: str, model_folder: str, f
     # 生成缩略图
     thumb_path = ""
     try:
-        thumb_dir = THUMB_DIR / scene_folder / model_folder
+        thumb_dir = THUMB_DIR / scene_folder / device_folder
         thumb_dir.mkdir(parents=True, exist_ok=True)
         thumb_file = thumb_dir / filename
 
         img = PILImage.open(file_path)
         img.thumbnail(THUMB_SIZE, PILImage.Resampling.LANCZOS)
         img.save(thumb_file, quality=85)
-        thumb_path = f"/uploads/thumbnails/{scene_folder}/{model_folder}/{filename}"
+        thumb_path = f"/uploads/thumbnails/{scene_folder}/{device_folder}/{filename}"
     except Exception:
         pass  # 缩略图失败不影响上传
 
-    image_url = f"/uploads/images/{scene_folder}/{model_folder}/{filename}"
+    image_url = f"/uploads/images/{scene_folder}/{device_folder}/{filename}"
     return image_url, thumb_path
 
 

@@ -15,7 +15,7 @@ from ..models.device_model import DeviceModel
 from ..models.evaluation import Evaluation
 from ..schemas.eval import (
     StatsOverview, ScoreCount, UserConsistency,
-    ModelScore, CleaningResult,
+    DeviceScore, CleaningResult,
 )
 
 router = APIRouter(prefix="/api/stats", tags=["统计分析"])
@@ -53,7 +53,7 @@ async def data_cleaning(
     if not evaluators:
         return CleaningResult(
             user_consistency=[], group_discarded_users=[],
-            final_valid_users=0, model_ranking=[]
+            final_valid_users=0, device_ranking=[]
         )
 
     # 构建用户评分矩阵
@@ -144,8 +144,8 @@ async def data_cleaning(
     final_valid = [uc for uc in user_consistency if uc.is_valid]
     final_valid_ids = {uc.user_id for uc in final_valid}
 
-    # 步骤 3：清洗后计算机型得分
-    model_scores_map = {}
+    # 步骤 3：清洗后计算设备得分
+    device_scores_map = {}
 
     for ev in db.query(Evaluation).filter(Evaluation.status == "submitted").all():
         if ev.user_id not in final_valid_ids:
@@ -159,23 +159,23 @@ async def data_cleaning(
         if not pair:
             continue
 
-        # 通过 Image 获取 model_id
+        # 通过 Image 获取 device_id
         img_a = db.query(Image).filter(Image.id == pair.image_a_id).first()
         img_b = db.query(Image).filter(Image.id == pair.image_b_id).first()
         if not img_a or not img_b:
             continue
 
-        model_scores_map.setdefault(img_a.model_id, []).append(ev.score_a)
-        model_scores_map.setdefault(img_b.model_id, []).append(ev.score_b)
+        device_scores_map.setdefault(img_a.device_id, []).append(ev.score_a)
+        device_scores_map.setdefault(img_b.device_id, []).append(ev.score_b)
 
     # 步骤 4：排行榜
     ranking = []
-    for model_id, scores in model_scores_map.items():
-        m = db.query(DeviceModel).filter(DeviceModel.id == model_id).first()
+    for device_id, scores in device_scores_map.items():
+        d = db.query(DeviceModel).filter(DeviceModel.id == device_id).first()
         median = float(np.median(scores)) if scores else 0
-        ranking.append(ModelScore(
-            model_id=model_id,
-            model_name=m.name if m else f"Model-{model_id}",
+        ranking.append(DeviceScore(
+            device_id=device_id,
+            device_name=d.name if d else f"Device-{device_id}",
             median_score=round(median, 4),
             eval_count=len(scores),
         ))
@@ -188,17 +188,17 @@ async def data_cleaning(
         user_consistency=user_consistency,
         group_discarded_users=group_discarded,
         final_valid_users=len(final_valid),
-        model_ranking=ranking,
+        device_ranking=ranking,
     )
 
 
-@router.get("/ranking", response_model=list[ModelScore])
+@router.get("/ranking", response_model=list[DeviceScore])
 async def get_ranking(
     scene_id: int = None,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    model_scores_map = {}
+    device_scores_map = {}
     for ev in db.query(Evaluation).filter(Evaluation.status == "submitted").all():
         if scene_id:
             pair = db.query(ImagePair).filter(ImagePair.id == ev.pair_id).first()
@@ -213,16 +213,16 @@ async def get_ranking(
         if not img_a or not img_b:
             continue
 
-        model_scores_map.setdefault(img_a.model_id, []).append(ev.score_a)
-        model_scores_map.setdefault(img_b.model_id, []).append(ev.score_b)
+        device_scores_map.setdefault(img_a.device_id, []).append(ev.score_a)
+        device_scores_map.setdefault(img_b.device_id, []).append(ev.score_b)
 
     ranking = []
-    for model_id, scores in model_scores_map.items():
-        m = db.query(DeviceModel).filter(DeviceModel.id == model_id).first()
+    for device_id, scores in device_scores_map.items():
+        d = db.query(DeviceModel).filter(DeviceModel.id == device_id).first()
         median = float(np.median(scores)) if scores else 0
-        ranking.append(ModelScore(
-            model_id=model_id,
-            model_name=m.name if m else f"Model-{model_id}",
+        ranking.append(DeviceScore(
+            device_id=device_id,
+            device_name=d.name if d else f"Device-{device_id}",
             median_score=round(median, 4),
             eval_count=len(scores),
         ))

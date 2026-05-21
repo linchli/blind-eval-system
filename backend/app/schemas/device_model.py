@@ -1,5 +1,5 @@
 """
-机型相关 Pydantic 模型
+设备相关 Pydantic 模型
 """
 from pydantic import BaseModel, ConfigDict
 from typing import Optional

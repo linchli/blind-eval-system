@@ -6,7 +6,7 @@ import ResultView from '../views/evaluator/ResultView.vue'
 import AdminLayout from '../views/admin/AdminLayout.vue'
 import AdminOverview from '../views/admin/AdminOverview.vue'
 import SceneManage from '../views/admin/SceneManage.vue'
-import ModelManage from '../views/admin/ModelManage.vue'
+import DeviceManage from '../views/admin/DeviceManage.vue'
 import ImageManage from '../views/admin/ImageManage.vue'
 import PairManage from '../views/admin/PairManage.vue'
 
@@ -23,7 +23,7 @@ const routes = [
       { path: '', redirect: '/admin/overview' },
       { path: 'overview', name: 'AdminOverview', component: AdminOverview },
       { path: 'scenes', name: 'SceneManage', component: SceneManage },
-      { path: 'models', name: 'ModelManage', component: ModelManage },
+      { path: 'devices', name: 'DeviceManage', component: DeviceManage },
       { path: 'images', name: 'ImageManage', component: ImageManage },
       { path: 'pairs', name: 'PairManage', component: PairManage },
     ],

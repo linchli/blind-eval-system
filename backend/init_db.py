@@ -19,8 +19,6 @@ from app.models import User, Scene, DeviceModel, Image, ImagePair, EvalSession, 
 DEFAULT_USERS = [
     ("admin", "admin@test.com", "admin123", "admin", "管理员"),
     ("evaluator1", "eval1@test.com", "eval123", "evaluator", "评审员1"),
-    ("evaluator2", "eval2@test.com", "eval123", "evaluator", "评审员2"),
-    ("guest", "guest@test.com", "guest123", "guest", "访客"),
 ]
 
 def create_tables():

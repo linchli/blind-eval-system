@@ -29,15 +29,15 @@ router = APIRouter(prefix="/api/admin", tags=["图像管理"])
 @router.get("/images", response_model=list[ImageOut])
 async def get_images(
     scene_id: int = None,
-    model_id: int = None,
+    device_id: int = None,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     query = db.query(Image)
     if scene_id:
         query = query.filter(Image.scene_id == scene_id)
-    if model_id:
-        query = query.filter(Image.model_id == model_id)
+    if device_id:
+        query = query.filter(Image.device_id == device_id)
 
     images = query.order_by(Image.created_at.desc()).all()
     result = []
@@ -45,12 +45,12 @@ async def get_images(
         result.append(ImageOut(
             id=img.id,
             scene_id=img.scene_id,
-            model_id=img.model_id,
+            device_id=img.device_id,
             scene_name=img.scene.name if img.scene else "",
-            model_name=img.model.name if img.model else "",
+            device_name=img.device.name if img.device else "",
             image_path=img.image_path,
             thumb_path=img.thumb_path or "",
-            model_attrs=img.model_attrs or {},
+            shot_attrs=img.shot_attrs or {},
             env_attrs=img.env_attrs or {},
             isp_attrs=img.isp_attrs or {},
             note_attrs=img.note_attrs or {},
@@ -61,8 +61,8 @@ async def get_images(
 @router.post("/images", response_model=ImageOut)
 async def upload_image(
     scene_id: int = Form(...),
-    model_id: int = Form(...),
-    model_attrs: str = Form("{}"),
+    device_id: int = Form(...),
+    shot_attrs: str = Form("{}"),
     env_attrs: str = Form("{}"),
     isp_attrs: str = Form("{}"),
     note_attrs: str = Form("{}"),
@@ -71,30 +71,30 @@ async def upload_image(
     db: Session = Depends(get_db),
 ):
     """上传图像并录入元数据"""
-    # 校验场景和机型
+    # 校验场景和设备
     scene = db.query(Scene).filter(Scene.id == scene_id).first()
     if not scene:
         raise HTTPException(status_code=404, detail="场景不存在")
 
-    model = db.query(DeviceModel).filter(DeviceModel.id == model_id).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="机型不存在")
+    device = db.query(DeviceModel).filter(DeviceModel.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="设备不存在")
 
     # 唯一约束检查
     existing = db.query(Image).filter(
-        Image.scene_id == scene_id, Image.model_id == model_id
+        Image.scene_id == scene_id, Image.device_id == device_id
     ).first()
     if existing:
         raise HTTPException(
             status_code=400,
-            detail=f"该场景已有此机型的图像，禁止重复录入（如需升级固件，请创建新机型后录入）"
+            detail=f"该场景已有此设备的图像，禁止重复录入（如需升级固件，请创建新设备后录入）"
         )
 
     # 解析 JSON 属性
     try:
-        model_attrs_dict = json.loads(model_attrs) if model_attrs else {}
+        shot_attrs_dict = json.loads(shot_attrs) if shot_attrs else {}
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="model_attrs JSON 格式错误")
+        raise HTTPException(status_code=400, detail="shot_attrs JSON 格式错误")
     try:
         env_attrs_dict = json.loads(env_attrs) if env_attrs else {}
     except json.JSONDecodeError:
@@ -112,16 +112,16 @@ async def upload_image(
     file_content = await image_file.read()
     filename = image_file.filename or "image.jpg"
     image_url, thumb_path = save_image_file(
-        file_content, scene.folder_name, model.folder_name, filename
+        file_content, scene.folder_name, device.folder_name, filename
     )
 
     # 创建记录
     image = Image(
         scene_id=scene_id,
-        model_id=model_id,
+        device_id=device_id,
         image_path=image_url,
         thumb_path=thumb_path,
-        model_attrs=model_attrs_dict,
+        shot_attrs=shot_attrs_dict,
         env_attrs=env_attrs_dict,
         isp_attrs=isp_attrs_dict,
         note_attrs=note_attrs_dict,
@@ -133,12 +133,12 @@ async def upload_image(
     return ImageOut(
         id=image.id,
         scene_id=image.scene_id,
-        model_id=image.model_id,
+        device_id=image.device_id,
         scene_name=scene.name,
-        model_name=model.name,
+        device_name=device.name,
         image_path=image.image_path,
         thumb_path=image.thumb_path or "",
-        model_attrs=image.model_attrs or {},
+        shot_attrs=image.shot_attrs or {},
         env_attrs=image.env_attrs or {},
         isp_attrs=image.isp_attrs or {},
         note_attrs=image.note_attrs or {},
@@ -188,8 +188,8 @@ async def get_pairs(
 
         img_a = p.image_a
         img_b = p.image_b
-        model_a_name = img_a.model.name if img_a and img_a.model else ""
-        model_b_name = img_b.model.name if img_b and img_b.model else ""
+        device_a_name = img_a.device.name if img_a and img_a.device else ""
+        device_b_name = img_b.device.name if img_b and img_b.device else ""
         image_a_url = img_a.image_path if img_a else ""
         image_b_url = img_b.image_path if img_b else ""
 
@@ -197,7 +197,7 @@ async def get_pairs(
             id=p.id, scene_id=p.scene_id,
             scene_name=p.scene.name if p.scene else "",
             image_a_id=p.image_a_id, image_b_id=p.image_b_id,
-            model_a_name=model_a_name, model_b_name=model_b_name,
+            device_a_name=device_a_name, device_b_name=device_b_name,
             image_a_url=image_a_url, image_b_url=image_b_url,
             sort_order=p.sort_order, eval_count=eval_count,
         ))
