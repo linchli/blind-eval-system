@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.dependencies import get_current_user
-from ..core.config import SCORE_MAP, DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE, DAILY_LIMIT, REST_AFTER_BATCHES, REPEAT_RATIO
+from ..core.config import SCORE_MAP, DEFAULT_BATCH_SIZE, REST_AFTER_BATCHES, REPEAT_RATIO
 from ..models.user import User
 from ..models.image_pair import ImagePair
 from ..models.image import Image

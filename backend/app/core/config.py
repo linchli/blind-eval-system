@@ -35,10 +35,7 @@ THUMB_DIR.mkdir(parents=True, exist_ok=True)
 # ==================== 评测参数 ====================
 REPEAT_RATIO = 0.1  # 重复图对比例 10%
 DEFAULT_BATCH_SIZE = 40
-MAX_BATCH_SIZE = 45
-DAILY_LIMIT = 100
 REST_AFTER_BATCHES = 3
-MIN_STAY_SECONDS = 1.5
 
 # ==================== 评分映射 ====================
 SCORE_MAP = {
@@ -48,10 +45,6 @@ SCORE_MAP = {
     "b_slight": {"label": "B稍好",   "score_a": 0.0, "score_b": 1.0},
     "b_much":   {"label": "B更好",   "score_a": 0.0, "score_b": 2.0},
 }
-
-# ==================== 统计参数 ====================
-CORRELATION_THRESHOLD = 0.8
-MAX_DISCARD_THRESHOLD = 0.85
 
 # ==================== 缩略图 ====================
 THUMB_SIZE = (300, 300)  # 缩略图最大尺寸

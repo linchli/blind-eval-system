@@ -81,8 +81,3 @@ export const apiGetPairDetail = (pairId) => request(`/api/eval/pair/${pairId}`)
 export const apiGetProgress = (sceneId) => request(`/api/eval/progress${sceneId ? '?scene_id=' + sceneId : ''}`)
 export const apiGetMyEvals = () => request('/api/eval/my')
 export const apiExportCSV = () => request('/api/eval/export/csv')
-
-// ==================== 统计 ====================
-export const apiStatsOverview = () => request('/api/stats/overview')
-export const apiDataCleaning = (sceneId) => request(`/api/stats/cleaning${sceneId ? '?scene_id=' + sceneId : ''}`)
-export const apiGetRanking = (sceneId) => request(`/api/stats/ranking${sceneId ? '?scene_id=' + sceneId : ''}`)
