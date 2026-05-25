@@ -328,6 +328,20 @@
 
           <!-- 5 个评分按钮 -->
           <div class="score-group-wrap">
+            <!-- 极速评分倒计时 -->
+            <div v-if="showCountdown" class="countdown-ring-wrap">
+              <svg class="countdown-ring" width="24" height="24" viewBox="0 0 24 24">
+                <circle
+                  cx="12" cy="12" r="10" fill="none"
+                  stroke="#facc15" stroke-width="2"
+                  stroke-linecap="round"
+                  :stroke-dasharray="62.83"
+                  :stroke-dashoffset="62.83 * (countdownProgress / 100)"
+                  transform="rotate(-90 12 12)"
+                  style="transition: stroke-dashoffset 0.05s linear;"
+                />
+              </svg>
+            </div>
             <!-- 评分修改提示（从按钮上方弹出） -->
             <transition name="score-toast-fade">
               <div v-if="scoreToast.show" class="score-toast" :class="scoreToast.type">
@@ -341,6 +355,7 @@
                         selected: store.currentScore === s.key,
                         'dimmed': isScored && store.currentScore !== s.key
                       }]"
+                      :disabled="!canScore"
                       @click="handleScore(s)">
                 {{ s.label }}
               </button>
@@ -390,6 +405,12 @@ const showSkipConfirm = ref(false)
 const lastSide = ref('')
 const currentScale = ref(1.0)
 let autoAdvanceTimer = null
+
+/* ---- 极速评分倒计时 ---- */
+const canScore = ref(false)
+const countdownProgress = ref(0)
+const showCountdown = ref(false)
+let countdownRaf = null
 
 /* ---- 评分修改提示 ---- */
 const scoreToast = ref({ show: false, msg: '', type: 'success' })
@@ -628,6 +649,32 @@ watch(() => store.currentPair?.pair_id, async () => {
   ensurePanzoom()
 })
 
+// 极速评分倒计时
+watch(() => store.currentPair?.pair_id, () => {
+  canScore.value = false
+  showCountdown.value = true
+  countdownProgress.value = 0
+
+  if (countdownRaf) cancelAnimationFrame(countdownRaf)
+
+  const startTime = Date.now()
+  // const duration = 1500
+  const duration = 0
+
+  function tick() {
+    const elapsed = Date.now() - startTime
+    countdownProgress.value = Math.min(100, (elapsed / duration) * 100)
+
+    if (elapsed >= duration) {
+      canScore.value = true
+      setTimeout(() => { showCountdown.value = false }, 300)
+    } else {
+      countdownRaf = requestAnimationFrame(tick)
+    }
+  }
+  countdownRaf = requestAnimationFrame(tick)
+}, { immediate: true })
+
 /* ---- 生命周期 ---- */
 onMounted(async () => {
   await store.fetchStatus()
@@ -638,6 +685,7 @@ onUnmounted(() => {
   destroyPanzoom('left')
   destroyPanzoom('right')
   if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer)
+  if (countdownRaf) cancelAnimationFrame(countdownRaf)
 })
 </script>
 
@@ -948,6 +996,7 @@ onUnmounted(() => {
 /* 已评分时未选中按钮：降低不透明度但保留hover和可点击 */
 .score-btn.dimmed { opacity: 0.45; }
 .score-btn.dimmed:hover { opacity: 0.85; }
+.score-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 .score-btn:active:not(.selected) { transform: scale(0.96); }
 
 /* ===== 评分修改提示（按钮上方弹出） ===== */
@@ -1040,6 +1089,18 @@ onUnmounted(() => {
 .modal-fade-leave-active { transition: all 0.15s ease; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 .modal-fade-enter-from .confirm-box, .modal-fade-leave-to .confirm-box { transform: scale(0.96) translateY(8px); }
+
+/* ===== 极速评分倒计时 ===== */
+.countdown-ring-wrap {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+}
+.countdown-ring {
+  display: block;
+}
 
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {

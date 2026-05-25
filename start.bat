@@ -31,4 +31,4 @@ echo   Close them to stop services.
 echo   Closing this window won't affect services.
 echo ============================================
 echo.
-pause
+:: pause

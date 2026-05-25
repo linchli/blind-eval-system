@@ -40,7 +40,8 @@ class EvaluationSubmitRequest(BaseModel):
     pair_id: int
     session_id: int
     score: str
-    score_label: str
+    score_label: str = ""
+    is_repeat: int = 0
 
 
 class EvaluationSubmitResponse(BaseModel):

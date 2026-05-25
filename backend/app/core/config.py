@@ -31,7 +31,6 @@ THUMB_DIR = UPLOAD_DIR / "thumbnails"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 THUMB_DIR.mkdir(parents=True, exist_ok=True)
-print(f"📁 项目根目录: {BASE_DIR}, 📁 上传目录: {UPLOAD_DIR}, 📁 图片目录: {IMAGE_DIR}, 📁 缩略图目录: {THUMB_DIR}")
 
 # ==================== 评测参数 ====================
 REPEAT_RATIO = 0.1  # 重复图对比例 10%

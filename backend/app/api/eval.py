@@ -316,16 +316,26 @@ async def submit_evaluation(
     if not pair:
         raise HTTPException(status_code=404, detail="图像对不存在")
 
-    # 先查找该 pair_id 是否已有草稿记录（无论 is_repeat 值）
+    # 使用前端传入的 is_repeat
+    is_repeat = body.is_repeat
+
+    # 校验：如果 is_repeat=1，确认 pair 在 session 中出现多次
+    pair_ids = session.pair_ids if isinstance(session.pair_ids, list) else []
+    pair_occurrence_count = pair_ids.count(body.pair_id)
+    if is_repeat == 1 and pair_occurrence_count <= 1:
+        raise HTTPException(status_code=400, detail="该图对不是重复图对")
+
+    # 根据 (user_id, pair_id, session_id, is_repeat) 查找已有草稿
     existing_draft = db.query(Evaluation).filter(
         Evaluation.user_id == current_user.id,
         Evaluation.pair_id == body.pair_id,
         Evaluation.session_id == body.session_id,
+        Evaluation.is_repeat == is_repeat,
         Evaluation.status == "draft"
     ).first()
 
     if existing_draft:
-        # 已有草稿记录，直接更新，保留原始 is_repeat 值
+        # 更新已有草稿
         score_info = SCORE_MAP[body.score]
         existing_draft.score = body.score
         existing_draft.score_label = body.score_label
@@ -339,27 +349,18 @@ async def submit_evaluation(
             score=existing_draft.score,
         )
 
-    # 没有草稿记录，检查是否已提交（不可修改）
+    # 检查是否已提交（不可修改）
     existing_submitted = db.query(Evaluation).filter(
         Evaluation.user_id == current_user.id,
         Evaluation.pair_id == body.pair_id,
         Evaluation.session_id == body.session_id,
+        Evaluation.is_repeat == is_repeat,
         Evaluation.status == "submitted"
     ).first()
     if existing_submitted:
         raise HTTPException(status_code=409, detail="该图对已提交，不可修改")
 
-    # 通过 session.pair_ids 判断是否为重复图对
-    pair_ids = session.pair_ids if isinstance(session.pair_ids, list) else []
-    pair_occurrence_count = pair_ids.count(body.pair_id)
-    # 如果 pair_id 在列表中出现多次，则本次为重复评测（第2次）
-    has_first_eval = db.query(Evaluation).filter(
-        Evaluation.user_id == current_user.id,
-        Evaluation.pair_id == body.pair_id,
-        Evaluation.session_id == body.session_id,
-    ).first()
-    is_repeat = 1 if (pair_occurrence_count > 1 and has_first_eval) else 0
-
+    # 创建新记录
     score_info = SCORE_MAP[body.score]
     draft = Evaluation(
         user_id=current_user.id,

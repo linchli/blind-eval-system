@@ -9,6 +9,7 @@ venv/
 ENV/
 venv.bak/
 .venv/
+uv.lock
 
 # Node.js
 node_modules/
@@ -56,6 +57,7 @@ uploads/*
 .pytest_cache/
 .coverage
 htmlcov/
+test_images/*
 
 # Backup files
 *.bak

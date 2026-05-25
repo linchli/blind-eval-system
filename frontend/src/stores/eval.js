@@ -245,6 +245,19 @@ export const useEvalStore = defineStore('eval', () => {
     }
   }
 
+    /**
+   * 根据 cursor 位置计算 is_repeat
+   * 统计当前 pair_id 在 cursor 位置之前出现的次数
+   */
+  function calcIsRepeat(pairList, cursor) {
+    const pairId = pairList[cursor].pair_id
+    let count = 0
+    for (let i = 0; i <= cursor; i++) {
+      if (pairList[i].pair_id === pairId) count++
+    }
+    return count > 1 ? 1 : 0
+  }
+
   /**
    * 提交单个评分（草稿）
    * @param {string} score - 评分键值
@@ -255,13 +268,15 @@ export const useEvalStore = defineStore('eval', () => {
 
     const pairId = currentPair.value.pair_id
     const key = `${pairId}_${cursor.value}`
+    const isRepeat = calcIsRepeat(pairList.value, cursor.value)
 
     try {
       await apiSubmitDraft({
         pair_id: pairId,
         session_id: sessionInfo.value.session_id,
         score: score,
-        score_label: scoreLabel
+        score_label: scoreLabel,
+        is_repeat: isRepeat
       })
 
       // 立即更新本地状态（使用 pair_id + 索引作为 key，避免重复图对覆盖）
