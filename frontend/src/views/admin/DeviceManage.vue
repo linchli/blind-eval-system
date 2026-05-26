@@ -1,44 +1,44 @@
 <template>
-  <div class="model-manage-page">
+  <div class="device-manage-page">
     <div class="page-header">
-      <h1 class="page-title">📱 机型管理</h1>
-      <button class="btn-primary" @click="showCreateDrawer = true">+ 新增机型</button>
+      <h1 class="page-title">📱 设备管理</h1>
+      <button class="btn-primary" @click="showCreateDrawer = true">+ 新增设备</button>
     </div>
 
     <div class="filter-bar">
       <div class="filter-item">
         <label>主控型号：</label>
-        <select v-model="filters.main_chip" @change="fetchModels" class="form-select">
+        <select v-model="filters.main_chip" @change="fetchDevices" class="form-select">
           <option value="">全部</option>
           <option v-for="chip in mainChipOptions" :key="chip" :value="chip">{{ chip }}</option>
         </select>
       </div>
       <div class="filter-item">
         <label>Sensor：</label>
-        <select v-model="filters.sensor_model" @change="fetchModels" class="form-select">
+        <select v-model="filters.sensor_model" @change="fetchDevices" class="form-select">
           <option value="">全部</option>
           <option v-for="sensor in sensorOptions" :key="sensor" :value="sensor">{{ sensor }}</option>
         </select>
       </div>
       <div class="filter-item">
         <label>焦距：</label>
-        <select v-model="filters.focal_length" @change="fetchModels" class="form-select">
+        <select v-model="filters.focal_length" @change="fetchDevices" class="form-select">
           <option value="">全部</option>
           <option v-for="focal in focalOptions" :key="focal" :value="focal">{{ focal }}</option>
         </select>
       </div>
       <div class="filter-item">
         <label>光圈：</label>
-        <select v-model="filters.aperture" @change="fetchModels" class="form-select">
+        <select v-model="filters.aperture" @change="fetchDevices" class="form-select">
           <option value="">全部</option>
           <option v-for="apt in apertureOptions" :key="apt" :value="apt">{{ apt }}</option>
         </select>
       </div>
     </div>
 
-    <div class="model-list">
-      <div class="model-item header">
-        <span class="col-name">机型名称</span>
+    <div class="device-list">
+      <div class="device-item header">
+        <span class="col-name">设备名称</span>
         <span class="col-chip">主控</span>
         <span class="col-sensor">Sensor</span>
         <span class="col-aperture">光圈</span>
@@ -48,21 +48,21 @@
         <span class="col-action">操作</span>
       </div>
 
-      <div v-for="model in filteredModels" :key="model.id" class="model-item">
-        <span class="col-name">{{ model.name }}</span>
-        <span class="col-chip">{{ model.main_chip }}</span>
-        <span class="col-sensor">{{ model.sensor_model }}</span>
-        <span class="col-aperture">{{ model.aperture }}</span>
-        <span class="col-focal">{{ model.focal_length }}</span>
-        <span class="col-resolution">{{ model.resolution }}</span>
-        <span class="col-count">{{ model.image_count }}</span>
+      <div v-for="device in filteredDevices" :key="device.id" class="device-item">
+        <span class="col-name">{{ device.name }}</span>
+        <span class="col-chip">{{ device.main_chip }}</span>
+        <span class="col-sensor">{{ device.sensor_model }}</span>
+        <span class="col-aperture">{{ device.aperture }}</span>
+        <span class="col-focal">{{ device.focal_length }}</span>
+        <span class="col-resolution">{{ device.resolution }}</span>
+        <span class="col-count">{{ device.image_count }}</span>
         <span class="col-action">
-          <button class="btn-sm btn-edit" @click="editModel(model)">编辑</button>
+          <button class="btn-sm btn-edit" @click="editDevice(device)">编辑</button>
         </span>
       </div>
 
-      <div v-if="filteredModels.length === 0" class="empty-tip">
-        暂无机型数据
+      <div v-if="filteredDevices.length === 0" class="empty-tip">
+        暂无设备数据
       </div>
     </div>
 
@@ -70,7 +70,7 @@
     <div v-if="showCreateDrawer || showEditDrawer" class="drawer-overlay" @click.self="closeDrawer">
       <div class="drawer-content wide">
         <div class="drawer-header">
-          <h2>{{ showEditDrawer ? '编辑机型' : '新增机型' }}</h2>
+          <h2>{{ showEditDrawer ? '编辑设备' : '新增设备' }}</h2>
           <button class="btn-icon" @click="closeDrawer">✕</button>
         </div>
 
@@ -80,7 +80,7 @@
           </div>
 
           <div v-if="showImportJson" class="import-json-box">
-            <textarea v-model="jsonInput" class="json-textarea" placeholder='请粘贴完整的机型配置 JSON，如：
+            <textarea v-model="jsonInput" class="json-textarea" placeholder='请粘贴完整的设备配置 JSON，如：
 {
   "设备名": "632-A4 12.0",
   "主控型号": "Hi3519AV100",
@@ -101,10 +101,10 @@
             </div>
           </div>
 
-          <div class="warning-tip">⚠️ 命名规范：同一机型不同固件需有后缀（如 632-WB4_v2.0）</div>
+          <div class="warning-tip">⚠️ 命名规范：同一设备不同固件需有后缀（如 632-WB4_v2.0）</div>
 
           <div class="form-group">
-            <label>机型名称</label>
+            <label>设备名称</label>
             <input v-model="form.name" class="form-input" />
           </div>
 
@@ -166,15 +166,6 @@
               <label>固件版本</label>
               <input v-model="form.device_attrs.firmware_version" class="form-input" />
             </div>
-            <div class="form-group flex1">
-              <label>场景模式</label>
-              <select v-model="form.device_attrs.scene_mode" class="form-select">
-                <option value="">请选择</option>
-                <option value="通用模式">通用模式</option>
-                <option value="夜间模式">夜间模式</option>
-                <option value="宽动态模式">宽动态模式</option>
-              </select>
-            </div>
           </div>
 
           <div class="custom-params">
@@ -193,7 +184,7 @@
           <button class="btn-sm btn-add" @click="addCustomParam">+ 添加自定义参数</button>
 
           <div class="form-group">
-            <label>机型特点</label>
+            <label>设备特点</label>
             <textarea v-model="form.features" class="form-textarea" rows="3"></textarea>
           </div>
 
@@ -202,7 +193,7 @@
 
         <div class="drawer-footer">
           <button class="btn-cancel" @click="closeDrawer">取消</button>
-          <button class="btn-primary" @click="submitModel" :disabled="saving">
+          <button class="btn-primary" @click="submitDevice" :disabled="saving">
             {{ saving ? '保存中...' : '确认创建' }}
           </button>
         </div>
@@ -217,7 +208,7 @@ import { useAuthStore } from '../../stores/auth.js'
 
 const authStore = useAuthStore()
 
-const models = ref([])
+const devices = ref([])
 const showCreateDrawer = ref(false)
 const showEditDrawer = ref(false)
 const showImportJson = ref(false)
@@ -259,56 +250,56 @@ const form = ref({
   features: '',
 })
 
-const filteredModels = computed(() => {
-  return models.value.filter(m => {
-    if (filters.value.main_chip && m.main_chip !== filters.value.main_chip) return false
-    if (filters.value.sensor_model && m.sensor_model !== filters.value.sensor_model) return false
-    if (filters.value.focal_length && m.focal_length !== filters.value.focal_length) return false
-    if (filters.value.aperture && m.aperture !== filters.value.aperture) return false
+const filteredDevices = computed(() => {
+  return devices.value.filter(d => {
+    if (filters.value.main_chip && d.main_chip !== filters.value.main_chip) return false
+    if (filters.value.sensor_model && d.sensor_model !== filters.value.sensor_model) return false
+    if (filters.value.focal_length && d.focal_length !== filters.value.focal_length) return false
+    if (filters.value.aperture && d.aperture !== filters.value.aperture) return false
     return true
   })
 })
 
-async function fetchModels() {
+async function fetchDevices() {
   try {
-    const data = await fetch('/api/admin/models', {
+    const data = await fetch('/api/admin/devices', {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     }).then(r => r.json())
-    models.value = data
+    devices.value = data
 
     // 更新筛选选项
-    mainChipOptions.value = [...new Set(data.map(m => m.main_chip).filter(Boolean))]
-    sensorOptions.value = [...new Set(data.map(m => m.sensor_model).filter(Boolean))]
-    focalOptions.value = [...new Set(data.map(m => m.focal_length).filter(Boolean))]
-    apertureOptions.value = [...new Set(data.map(m => m.aperture).filter(Boolean))]
+    mainChipOptions.value = [...new Set(data.map(d => d.main_chip).filter(Boolean))]
+    sensorOptions.value = [...new Set(data.map(d => d.sensor_model).filter(Boolean))]
+    focalOptions.value = [...new Set(data.map(d => d.focal_length).filter(Boolean))]
+    apertureOptions.value = [...new Set(data.map(d => d.aperture).filter(Boolean))]
   } catch (e) {
-    console.error('获取机型失败:', e)
-    if (window.showAdminToast) window.showAdminToast(e.message || '获取机型失败', 'error')
+    console.error('获取设备失败:', e)
+    if (window.showAdminToast) window.showAdminToast(e.message || '获取设备失败', 'error')
   }
 }
 
-function editModel(model) {
-  editingId.value = model.id
+function editDevice(device) {
+  editingId.value = device.id
   form.value = {
-    name: model.name,
-    main_chip: model.main_chip || '',
-    lens_model: model.lens_model || '',
-    sensor_model: model.sensor_model || '',
-    aperture: model.aperture || '',
-    focal_length: model.focal_length || '',
-    resolution: model.resolution || '',
-    frame_rate: model.frame_rate || '',
-    white_led: model.white_led || '',
-    ir_led: model.ir_led || '',
-    housing_info: model.housing_info || '',
-    device_attrs: { ...(model.device_attrs || {}) },
-    features: model.features || '',
+    name: device.name,
+    main_chip: device.main_chip || '',
+    lens_model: device.lens_model || '',
+    sensor_model: device.sensor_model || '',
+    aperture: device.aperture || '',
+    focal_length: device.focal_length || '',
+    resolution: device.resolution || '',
+    frame_rate: device.frame_rate || '',
+    white_led: device.white_led || '',
+    ir_led: device.ir_led || '',
+    housing_info: device.housing_info || '',
+    device_attrs: { ...(device.device_attrs || {}) },
+    features: device.features || '',
   }
 
   // 提取已知字段外自定义参数
   customParams.value = []
   const knownFields = ['firmware_version', 'scene_mode']
-  for (const [key, value] of Object.entries(model.device_attrs || {})) {
+  for (const [key, value] of Object.entries(device.device_attrs || {})) {
     if (!knownFields.includes(key)) {
       customParams.value.push({ key, value })
     }
@@ -337,7 +328,6 @@ function importJson() {
       '壳体信息': 'housing_info',
       // 扩展参数
       '固件版本': 'firmware_version',
-      '场景模式': 'scene_mode',
     }
 
     for (const [key, value] of Object.entries(json)) {
@@ -394,9 +384,9 @@ function closeDrawer() {
   jsonInput.value = ''
 }
 
-async function submitModel() {
+async function submitDevice() {
   if (!form.value.name) {
-    errorMessage.value = '请填写机型名称'
+    errorMessage.value = '请填写设备名称'
     return
   }
 
@@ -415,7 +405,7 @@ async function submitModel() {
       }
     }
 
-    const url = editingId.value ? `/api/admin/models/${editingId.value}` : '/api/admin/models'
+    const url = editingId.value ? `/api/admin/devices/${editingId.value}` : '/api/admin/devices'
     const method = editingId.value ? 'PUT' : 'POST'
 
     const body = {
@@ -452,7 +442,7 @@ async function submitModel() {
       window.showAdminToast(editingId.value ? '修改成功' : '创建成功', 'success')
     }
     closeDrawer()
-    await fetchModels()
+    await fetchDevices()
   } catch (e) {
     errorMessage.value = e.message || '保存失败'
   } finally {
@@ -461,12 +451,12 @@ async function submitModel() {
 }
 
 onMounted(() => {
-  fetchModels()
+  fetchDevices()
 })
 </script>
 
 <style scoped>
-.model-manage-page {
+.device-manage-page {
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -545,14 +535,14 @@ onMounted(() => {
 
 .form-textarea { resize: vertical; font-family: inherit; }
 
-.model-list {
+.device-list {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
-.model-item {
+.device-item {
   display: grid;
   grid-template-columns: 180px 100px 90px 70px 80px 100px 70px 80px;
   gap: 12px;
@@ -561,7 +551,7 @@ onMounted(() => {
   align-items: center;
 }
 
-.model-item.header {
+.device-item.header {
   background: #f8fafc;
   font-weight: 600;
   color: #64748b;
@@ -711,13 +701,13 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .drawer-content, .drawer-content.wide { width: 100%; }
-  .model-item {
+  .device-item {
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 12px;
   }
-  .model-item > span { grid-column: auto; }
-  .model-item.header { display: none; }
+  .device-item > span { grid-column: auto; }
+  .device-item.header { display: none; }
   .filter-bar { flex-direction: column; }
   .form-row { flex-direction: column; }
 }

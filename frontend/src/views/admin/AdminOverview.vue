@@ -38,8 +38,8 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-value">{{ stats.model_count }}</span>
-          <span class="stat-label">机型数</span>
+          <span class="stat-value">{{ stats.device_count }}</span>
+          <span class="stat-label">设备数</span>
         </div>
       </div>
 
@@ -64,9 +64,9 @@
           <span class="link-icon">🏞️</span>
           <span class="link-label">场景管理</span>
         </button>
-        <button class="link-card" @click="$router.push('/admin/models')">
+        <button class="link-card" @click="$router.push('/admin/devices')">
           <span class="link-icon">📱</span>
-          <span class="link-label">机型管理</span>
+          <span class="link-label">设备管理</span>
         </button>
         <button class="link-card" @click="$router.push('/admin/images')">
           <span class="link-icon">🖼️</span>
@@ -75,6 +75,18 @@
         <button class="link-card" @click="$router.push('/admin/pairs')">
           <span class="link-icon">🔗</span>
           <span class="link-label">配对管理</span>
+        </button>
+        <button class="link-card" @click="$router.push('/admin/users')">
+          <span class="link-icon">👤</span>
+          <span class="link-label">用户管理</span>
+        </button>
+        <button class="link-card" @click="$router.push('/admin/cleaning')">
+          <span class="link-icon">🧹</span>
+          <span class="link-label">数据清洗</span>
+        </button>
+        <button class="link-card" @click="$router.push('/admin/ranking')">
+          <span class="link-icon">📈</span>
+          <span class="link-label">排行榜</span>
         </button>
       </div>
     </div>
@@ -89,7 +101,7 @@
         <span class="step-arrow">→</span>
         <div class="guide-step">
           <span class="step-num">2️⃣</span>
-          <span>创建机型</span>
+          <span>创建设备</span>
         </div>
         <span class="step-arrow">→</span>
         <div class="guide-step">
@@ -120,7 +132,7 @@ const authStore = useAuthStore()
 
 const stats = ref({
   scene_count: 0,
-  model_count: 0,
+  device_count: 0,
   image_count: 0,
   pair_count: 0,
   eval_count: 0,

@@ -20,20 +20,20 @@
         </div>
         <div class="strategy-item disabled">
           <input type="radio" id="strategy-baseline" value="baseline" v-model="pairStrategy" disabled />
-          <label for="strategy-baseline" title="基准机型需根据排行榜给出，功能暂未开放">基准配对</label>
+          <label for="strategy-baseline" title="基准设备需根据排行榜给出，功能暂未开放">基准配对</label>
         </div>
       </div>
 
       <div class="form-group">
-        <label>基准机型</label>
-        <select v-model="baselineModelId" class="form-select" :disabled="pairStrategy === 'full'">
+        <label>基准设备</label>
+        <select v-model="baselineDeviceId" class="form-select" :disabled="pairStrategy === 'full'">
           <option value="">请选择</option>
-          <option v-for="model in sceneModels" :key="model.id" :value="model.id">{{ model.name }}</option>
+          <option v-for="device in sceneDevices" :key="device.id" :value="device.id">{{ device.name }}</option>
         </select>
       </div>
 
-      <button class="btn-primary btn-large" @click="showPreviewDialog = true" :disabled="!selectedSceneId || previewLoading">
-        {{ previewLoading ? '计算中...' : '🚀 生成配对' }}
+      <button class="btn-primary btn-large" @click="openPreviewDialog" :disabled="!selectedSceneId || previewLoading">
+        {{ previewLoading ? '计算中...' : '生成配对' }}
       </button>
     </div>
 
@@ -61,8 +61,8 @@
       <div v-else class="pair-list">
         <div v-for="pair in pairs" :key="pair.id" class="pair-item">
           <span class="pair-index">#{{ pair.sort_order}}</span>
-          <span class="pair-models">
-            {{ pair.model_a_name }} vs {{ pair.model_b_name }}
+          <span class="pair-devices">
+            {{ pair.device_a_name }} vs {{ pair.device_b_name }}
           </span>
           <span class="pair-eval">{{ pair.eval_count }}人已评价</span>
         </div>
@@ -134,9 +134,9 @@ const scenes = ref([])
 const pairs = ref([])
 const selectedSceneId = ref('')
 const pairStrategy = ref('full')
-const baselineModelId = ref('')
+const baselineDeviceId = ref('')
 const sceneStats = ref(null)
-const sceneModels = ref([])
+const sceneDevices = ref([])
 
 const showPreviewDialog = ref(false)
 const previewLoading = ref(false)
@@ -155,6 +155,11 @@ async function fetchScenes() {
   }
 }
 
+function openPreviewDialog() {
+  showPreviewDialog.value = true
+  fetchPreview()
+}
+
 async function fetchPairs() {
   try {
     const data = await fetch(`/api/admin/pairs?scene_id=${selectedSceneId.value}`, {
@@ -171,30 +176,43 @@ async function fetchSceneStats() {
   if (!selectedSceneId.value) {
     sceneStats.value = null
     pairs.value = []
+    previewData.value = null
     return
   }
 
   try {
-    const [stats, pairList, models] = await Promise.all([
+    const [stats, pairList, devicesList, preview] = await Promise.all([
       fetch(`/api/admin/pairs/scene-stats/${selectedSceneId.value}`, {
         headers: { 'Authorization': `Bearer ${authStore.token}` }
       }).then(r => r.json()),
       fetch(`/api/admin/pairs?scene_id=${selectedSceneId.value}`, {
         headers: { 'Authorization': `Bearer ${authStore.token}` }
       }).then(r => r.json()),
-      fetch('/api/admin/models', {
+      fetch('/api/admin/devices', {
         headers: { 'Authorization': `Bearer ${authStore.token}` }
+      }).then(r => r.json()),
+      fetch('/api/admin/pairs/preview', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scene_id: Number(selectedSceneId.value),
+          strategy: 'full',
+        }),
       }).then(r => r.json()),
     ])
     sceneStats.value = stats
     pairs.value = pairList
+    if (!preview.error) previewData.value = preview
 
-    // 获取该场景的机型列表（用于基准配对）
+    // 获取该场景的设备列表（用于基准配对）
     const sceneImages = await fetch(`/api/admin/images?scene_id=${selectedSceneId.value}`, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     }).then(r => r.json())
-    const modelIds = [...new Set(sceneImages.map(img => img.model_id))]
-    sceneModels.value = models.filter(m => modelIds.includes(m.id))
+    const deviceIds = [...new Set(sceneImages.map(img => img.device_id))]
+    sceneDevices.value = devicesList.filter(d => deviceIds.includes(d.id))
   } catch (e) {
     console.error('获取场景统计失败:', e)
   }
@@ -379,7 +397,7 @@ onMounted(() => {
   font-weight: 600; min-width: 40px;
 }
 
-.pair-models {
+.pair-devices {
   flex: 1;
   font-size: 14px;
   color: #374151;

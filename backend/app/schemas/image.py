@@ -8,12 +8,12 @@ from typing import Optional
 class ImageOut(BaseModel):
     id: int
     scene_id: int
-    model_id: int
+    device_id: int
     scene_name: str = ""
-    model_name: str = ""
+    device_name: str = ""
     image_path: str
     thumb_path: str = ""
-    model_attrs: dict = {}
+    shot_attrs: dict = {}
     env_attrs: dict = {}
     isp_attrs: dict = {}
     note_attrs: dict = {}
@@ -21,7 +21,7 @@ class ImageOut(BaseModel):
 
 class ImageUploadRequest(BaseModel):
     """JSON 属性部分（文件单独上传）"""
-    model_attrs: dict = {}
+    shot_attrs: dict = {}
     env_attrs: dict = {}
     isp_attrs: dict = {}
     note_attrs: dict = {}
@@ -55,8 +55,8 @@ class ImagePairOut(BaseModel):
     scene_name: str = ""
     image_a_id: int
     image_b_id: int
-    model_a_name: str = ""
-    model_b_name: str = ""
+    device_a_name: str = ""
+    device_b_name: str = ""
     image_a_url: str = ""
     image_b_url: str = ""
     sort_order: int
@@ -64,7 +64,7 @@ class ImagePairOut(BaseModel):
 
 
 class ImagePairBrief(BaseModel):
-    """盲评时返回（隐藏机型信息）"""
+    """盲评时返回（隐藏设备信息）"""
     pair_id: int
     image_a_url: str
     image_b_url: str
@@ -78,3 +78,4 @@ class SessionPairInfo(BaseModel):
     image_a_url: str
     image_b_url: str
     my_score: Optional[str] = None
+    comment: str = ""

@@ -1,7 +1,7 @@
 """
 评测相关 ORM 模型（EvalSession + Evaluation）
 """
-from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey, JSON, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey, JSON, UniqueConstraint, SmallInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -18,6 +18,14 @@ class EvalSession(Base):
     batch_size = Column(Integer, nullable=False)
     started_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime, nullable=True)
+    retest_weight = Column(Float, default=1.0, comment="重测信度一致率 (0-1)")
+    entropy_weight = Column(Float, default=1.0, comment="熵惩罚系数 (0-1)")
+    cleaning_status = Column(
+        Enum("pending", "valid", "invalid"),
+        default="pending", nullable=False,
+        comment="第一层清洗状态"
+    )
+    reject_reason = Column(String(200), default="", comment="拒绝原因")
 
     user = relationship("User", back_populates="sessions")
     evaluations = relationship("Evaluation", back_populates="session")
@@ -34,17 +42,23 @@ class Evaluation(Base):
     score_label = Column(String(20), nullable=False)
     score_a = Column(Float, nullable=False)
     score_b = Column(Float, nullable=False)
-    left_model_key = Column(String(1), nullable=False)
-    right_model_key = Column(String(1), nullable=False)
-    view_duration_ms = Column(Integer, default=0)
+    comment = Column(String(500), default="", comment="评价理由")
+    is_repeat = Column(SmallInteger, default=0, nullable=False, comment="是否为重复图对的第2次评测 0=首次 1=重复")
     status = Column(Enum("draft", "submitted"), default="draft", nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     submitted_at = Column(DateTime, nullable=True)
+    cleaning_status = Column(
+        Enum("pending", "valid", "rejected"),
+        default="pending", nullable=False,
+        comment="清洗状态"
+    )
+    reject_reason = Column(String(200), default="", comment="拒绝原因")
+    user_weight = Column(Float, default=1.0, comment="最终权重")
 
     user = relationship("User", back_populates="evaluations")
     pair = relationship("ImagePair", back_populates="evaluations")
     session = relationship("EvalSession", back_populates="evaluations")
 
     __table_args__ = (
-        UniqueConstraint("user_id", "pair_id", name="uq_user_pair"),
+        UniqueConstraint("user_id", "pair_id", "is_repeat", name="uq_user_pair_repeat"),
     )

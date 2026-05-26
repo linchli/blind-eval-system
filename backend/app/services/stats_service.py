@@ -18,7 +18,7 @@ def get_overview(db: Session) -> dict:
     """获取系统概览统计"""
     return {
         "scene_count": db.query(Scene).count(),
-        "model_count": db.query(DeviceModel).count(),
+        "device_count": db.query(DeviceModel).count(),
         "image_count": db.query(Image).count(),
         "pair_count": db.query(ImagePair).count(),
         "eval_count": db.query(Evaluation).filter(Evaluation.status == "submitted").count(),
@@ -45,7 +45,7 @@ def compute_cleaning(db: Session, scene_id: int = None) -> dict:
 
     evaluations = query.all()
     if not evaluations:
-        return {"user_consistency": [], "group_discarded_users": [], "final_valid_users": 0, "model_ranking": []}
+        return {"user_consistency": [], "group_discarded_users": [], "final_valid_users": 0, "device_ranking": []}
 
     # 按用户分组
     user_evals = {}
@@ -83,11 +83,11 @@ def compute_cleaning(db: Session, scene_id: int = None) -> dict:
     valid_users = [c for c in consistency if c["is_valid"]]
     discarded = [c for c in consistency if not c["is_valid"]]
 
-    # 机型排行（基于有效用户）
+    # 设备排行（基于有效用户）
     valid_uids = {c["user_id"] for c in valid_users}
     valid_evals = [e for e in evaluations if e.user_id in valid_uids]
 
-    model_scores = {}
+    device_scores = {}
     for ev in valid_evals:
         pair = db.query(ImagePair).filter(ImagePair.id == ev.pair_id).first()
         if not pair:
@@ -97,17 +97,17 @@ def compute_cleaning(db: Session, scene_id: int = None) -> dict:
         if not img_a or not img_b:
             continue
         # A 侧
-        model_scores.setdefault(img_a.model_id, []).append(ev.score_a)
+        device_scores.setdefault(img_a.device_id, []).append(ev.score_a)
         # B 侧
-        model_scores.setdefault(img_b.model_id, []).append(ev.score_b)
+        device_scores.setdefault(img_b.device_id, []).append(ev.score_b)
 
     ranking = []
-    for mid, scores in model_scores.items():
-        m = db.query(DeviceModel).filter(DeviceModel.id == mid).first()
+    for did, scores in device_scores.items():
+        d = db.query(DeviceModel).filter(DeviceModel.id == did).first()
         sorted_scores = sorted(scores)
         median = sorted_scores[len(sorted_scores) // 2]
         ranking.append({
-            "model_id": mid, "model_name": m.name if m else "",
+            "device_id": did, "device_name": d.name if d else "",
             "median_score": round(median, 3), "eval_count": len(scores), "rank": 0
         })
 
@@ -119,5 +119,5 @@ def compute_cleaning(db: Session, scene_id: int = None) -> dict:
         "user_consistency": consistency,
         "group_discarded_users": discarded,
         "final_valid_users": len(valid_users),
-        "model_ranking": ranking,
+        "device_ranking": ranking,
     }

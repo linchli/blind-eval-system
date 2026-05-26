@@ -14,10 +14,10 @@
         </select>
       </div>
       <div class="filter-item">
-        <label>机型：</label>
-        <select v-model="filters.model_id" @change="fetchImages" class="form-select">
+        <label>设备：</label>
+        <select v-model="filters.device_id" @change="fetchImages" class="form-select">
           <option value="">全部</option>
-          <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name }}</option>
+          <option v-for="device in devices" :key="device.id" :value="device.id">{{ device.name }}</option>
         </select>
       </div>
     </div>
@@ -25,12 +25,12 @@
     <div class="image-grid">
       <div v-for="img in filteredImages" :key="img.id" class="image-card">
         <div class="image-preview">
-          <img v-if="img.thumb_path" :src="img.thumb_path" :alt="img.model_name" />
-          <img v-else :src="img.image_path" :alt="img.model_name" />
+          <img v-if="img.thumb_path" :src="img.thumb_path" :alt="img.device_name" />
+          <img v-else :src="img.image_path" :alt="img.device_name" />
         </div>
         <div class="image-info">
           <div class="scene-tag">{{ img.scene_name }}</div>
-          <div class="model-tag">{{ img.model_name }}</div>
+          <div class="device-tag">{{ img.device_name }}</div>
         </div>
       </div>
 
@@ -63,10 +63,10 @@
                 </select>
               </div>
               <div class="form-group flex1">
-                <label>关联机型</label>
-                <select v-model="form.model_id" class="form-select">
+                <label>关联设备</label>
+                <select v-model="form.device_id" class="form-select">
                   <option value="">请选择</option>
-                  <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name }}</option>
+                  <option v-for="device in devices" :key="device.id" :value="device.id">{{ device.name }}</option>
                 </select>
               </div>
             </div>
@@ -183,35 +183,35 @@
           </div>
 
           <div v-show="activeTab === 2" class="tab-content">
-            <h4 class="section-title">── ③ 设备参数 (model_attrs) ───</h4>
+            <h4 class="section-title">── ③ 设备参数 (shot_attrs) ───</h4>
             <div class="form-row">
               <div class="form-group flex1">
                 <label>设备名</label>
-                <input v-model="form.model_attrs.device_name" class="form-input" />
+                <input v-model="form.shot_attrs.device_name" class="form-input" />
               </div>
               <div class="form-group flex1">
                 <label>主控型号</label>
-                <input v-model="form.model_attrs.main_chip" class="form-input" />
+                <input v-model="form.shot_attrs.main_chip" class="form-input" />
               </div>
             </div>
             <div class="form-row">
               <div class="form-group flex1">
                 <label>镜头型号</label>
-                <input v-model="form.model_attrs.lens_model" class="form-input" />
+                <input v-model="form.shot_attrs.lens_model" class="form-input" />
               </div>
               <div class="form-group flex1">
                 <label>Sensor型号</label>
-                <input v-model="form.model_attrs.sensor_model" class="form-input" />
+                <input v-model="form.shot_attrs.sensor_model" class="form-input" />
               </div>
             </div>
             <div class="form-row">
               <div class="form-group flex1">
                 <label>焦距</label>
-                <input v-model="form.model_attrs.focal_length" class="form-input" />
+                <input v-model="form.shot_attrs.focal_length" class="form-input" />
               </div>
               <div class="form-group flex1">
                 <label>分辨率</label>
-                <input v-model="form.model_attrs.resolution" class="form-input" />
+                <input v-model="form.shot_attrs.resolution" class="form-input" />
               </div>
             </div>
           </div>
@@ -293,7 +293,7 @@ const authStore = useAuthStore()
 
 const images = ref([])
 const scenes = ref([])
-const models = ref([])
+const devices = ref([])
 const showUploadModal = ref(false)
 const showJsonImport = ref(false)
 const activeTab = ref(0)
@@ -306,13 +306,13 @@ const selectedFile = ref(null)
 
 const filters = ref({
   scene_id: '',
-  model_id: '',
+  device_id: '',
 })
 
 const form = ref({
   scene_id: '',
-  model_id: '',
-  model_attrs: {
+  device_id: '',
+  shot_attrs: {
     device_name: '', main_chip: '', lens_model: '',
     sensor_model: '', focal_length: '', resolution: '',
   },
@@ -335,21 +335,21 @@ const form = ref({
 const filteredImages = computed(() => {
   return images.value.filter(img => {
     if (filters.value.scene_id && img.scene_id !== filters.value.scene_id) return false
-    if (filters.value.model_id && img.model_id !== filters.value.model_id) return false
+    if (filters.value.device_id && img.device_id !== filters.value.device_id) return false
     return true
   })
 })
 
 async function fetchData() {
   try {
-    const [imagesData, scenesData, modelsData] = await Promise.all([
+    const [imagesData, scenesData, devicesData] = await Promise.all([
       fetch('/api/admin/images', { headers: { 'Authorization': `Bearer ${authStore.token}` } }).then(r => r.json()),
       fetch('/api/admin/scenes', { headers: { 'Authorization': `Bearer ${authStore.token}` } }).then(r => r.json()),
-      fetch('/api/admin/models', { headers: { 'Authorization': `Bearer ${authStore.token}` } }).then(r => r.json()),
+      fetch('/api/admin/devices', { headers: { 'Authorization': `Bearer ${authStore.token}` } }).then(r => r.json()),
     ])
     images.value = imagesData
     scenes.value = scenesData
-    models.value = modelsData
+    devices.value = devicesData
   } catch (e) {
     console.error('获取数据失败:', e)
     if (window.showAdminToast) window.showAdminToast(e.message || '获取数据失败', 'error')
@@ -422,7 +422,7 @@ function importJsonData() {
       }
     }
 
-    // 图像视频参数 → model_attrs
+    // 图像视频参数 → shot_attrs
     if (json['图像视频参数'] || json['图像/视频参数']) {
       const data = json['图像视频参数'] || json['图像/视频参数']
       const mapping = {
@@ -442,7 +442,7 @@ function importJsonData() {
       }
       for (const [key, value] of Object.entries(data)) {
         const mappedKey = mapping[key] || key
-        form.value.model_attrs[mappedKey] = value
+        form.value.shot_attrs[mappedKey] = value
       }
     }
 
@@ -479,8 +479,8 @@ function closeModal() {
 
 function resetForm() {
   form.value = {
-    scene_id: '', model_id: '',
-    model_attrs: { device_name: '', main_chip: '', lens_model: '', sensor_model: '', focal_length: '', resolution: '' },
+    scene_id: '', device_id: '',
+    shot_attrs: { device_name: '', main_chip: '', lens_model: '', sensor_model: '', focal_length: '', resolution: '' },
     env_attrs: { point_type: '', weather: '', season: '', time_period: '', env_color_temp: '', env_illuminance: '', relation_desc: '' },
     isp_attrs: { sensor_analog_gain: '', sensor_digital_gain: '', total_gain: '', exposure_time: '', wb_r_gain: '' },
     note_attrs: { capture_time: '', capture_env: '室外', capture_person: '', device_code: '', capture_location: '', capture_purpose: '盲评', special_note: '' },
@@ -492,8 +492,8 @@ function resetForm() {
 }
 
 async function submitImage() {
-  if (!form.value.scene_id || !form.value.model_id) {
-    errorMessage.value = '请选择关联场景和机型'
+  if (!form.value.scene_id || !form.value.device_id) {
+    errorMessage.value = '请选择关联场景和设备'
     return
   }
   if (!selectedFile.value) {
@@ -507,8 +507,8 @@ async function submitImage() {
   try {
     const formData = new FormData()
     formData.append('scene_id', form.value.scene_id)
-    formData.append('model_id', form.value.model_id)
-    formData.append('model_attrs', JSON.stringify(form.value.model_attrs))
+    formData.append('device_id', form.value.device_id)
+    formData.append('shot_attrs', JSON.stringify(form.value.shot_attrs))
     formData.append('env_attrs', JSON.stringify(form.value.env_attrs))
     formData.append('isp_attrs', JSON.stringify(form.value.isp_attrs))
     formData.append('note_attrs', JSON.stringify(form.value.note_attrs))
@@ -646,7 +646,7 @@ onMounted(() => {
   padding: 12px;
 }
 
-.scene-tag, .model-tag {
+.scene-tag, .device-tag {
   display: inline-block;
   padding: 4px 8px;
   border-radius: 4px;
@@ -655,7 +655,7 @@ onMounted(() => {
 }
 
 .scene-tag { background: #dbeafe; color: #1e40af; }
-.model-tag { background: #dcfce7; color: #16a34a; }
+.device-tag { background: #dcfce7; color: #16a34a; }
 
 .empty-tip {
   grid-column: 1 / -1;

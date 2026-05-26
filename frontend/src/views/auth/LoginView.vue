@@ -46,12 +46,9 @@
         <router-link to="/register">立即注册</router-link>
       </div>
 
-      <div class="demo-accounts">
-        <p>演示账号：</p>
-        <div class="account-list">
-          <button @click="fillDemo('admin', 'admin123')" type="button">管理员</button>
-          <button @click="fillDemo('evaluator1', 'eval123')" type="button">评审员1</button>
-        </div>
+      <div class="ranking-link">
+        <span>只是想看看？</span>
+        <router-link to="/ranking">查看排行榜</router-link>
       </div>
     </div>
   </div>
@@ -72,11 +69,6 @@ const form = reactive({
 
 const loading = ref(false)
 const error = ref('')
-
-function fillDemo(username, password) {
-  form.username = username
-  form.password = password
-}
 
 async function handleLogin() {
   loading.value = true
@@ -236,38 +228,23 @@ async function handleLogin() {
   text-decoration: underline;
 }
 
-.demo-accounts {
+.ranking-link {
+  text-align: center;
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #e5e7eb;
-  text-align: center;
+  color: #64748b;
+  font-size: 14px;
 }
 
-.demo-accounts p {
-  font-size: 12px;
-  color: #9ca3af;
-  margin: 0 0 10px 0;
+.ranking-link a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 4px;
 }
 
-.account-list {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.account-list button {
-  padding: 6px 12px;
-  font-size: 12px;
-  color: #6b7280;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.account-list button:hover {
-  background: #e5e7eb;
-  color: #374151;
+.ranking-link a:hover {
+  text-decoration: underline;
 }
 </style>

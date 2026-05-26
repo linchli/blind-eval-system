@@ -1,36 +1,34 @@
 @echo off
-chcp 65001 >nul
 echo ============================================
-echo   图像盲评系统 v0.2 - 启动脚本
+echo   Blind Eval System v0.3 - Startup
 echo ============================================
 echo.
 
-:: 检查 Python
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo [错误] 未找到 Python，请先安装 Python 3.8+
-    pause
-    exit /b 1
-)
+:: Init database
+:: echo [1/2] Init database...
+:: uv run python backend/init_db.py
 
-:: 检查依赖
-echo [1/3] 检查后端依赖...
-pip show fastapi >nul 2>&1
-if errorlevel 1 (
-    echo [安装] 安装后端依赖...
-    pip install fastapi uvicorn sqlalchemy pymysql python-jose passlib bcrypt pydantic python-multipart pillow
-)
+:: Start backend service
+echo [1/2] Starting backend...
+start "" cmd /k "title Backend - Blind Eval && cd /d %~dp0 && uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
 
-echo [2/3] 初始化数据库...
-python -m backend.init_db
+:: Wait 1 second to avoid conflict
+timeout /t 1 /nobreak >nul
 
-echo [3/3] 启动后端服务...
+:: Start frontend service
+echo [2/2] Starting frontend...
+start "" cmd /k "title Frontend - Blind Eval && cd /d %~dp0\frontend && npm run dev"
+
 echo.
-echo 启动完成！
-echo 后端地址: http://localhost:8000
-echo 默认账号: admin / admin123
+echo ============================================
+echo   Started!
+echo   Backend:  http://localhost:8000
+echo   Frontend: http://localhost:5173
+echo   Account:  admin / admin123
 echo.
-echo 按 Ctrl+C 停止服务
+echo   Two service windows are running.
+echo   Close them to stop services.
+echo   Closing this window won't affect services.
+echo ============================================
 echo.
-
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+:: pause

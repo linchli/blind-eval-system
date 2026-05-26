@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.dependencies import get_current_user
-from ..core.config import SCORE_MAP, DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE, DAILY_LIMIT, REST_AFTER_BATCHES
+from ..core.config import SCORE_MAP, DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE, DAILY_LIMIT, REST_AFTER_BATCHES, REPEAT_RATIO
 from ..models.user import User
 from ..models.image_pair import ImagePair
 from ..models.image import Image
@@ -25,6 +25,7 @@ from ..schemas.eval import (
 )
 from ..schemas.image import ImagePairBrief, SessionPairInfo
 from ..schemas.common import ApiResponse
+from ..services.cleaning_service import run_layer1_cleaning
 
 router = APIRouter(prefix="/api/eval", tags=["盲评"])
 
@@ -36,21 +37,22 @@ def _get_image_url(pair: ImagePair, side: str) -> str:
     return pair.image_b.image_path if pair.image_b else ""
 
 
-def _get_model_id(pair: ImagePair, side: str) -> int | None:
-    """获取图像对中指定侧的机型 ID"""
+def _get_device_id(pair: ImagePair, side: str) -> int | None:
+    """获取图像对中指定侧的设备 ID"""
     if side == "a":
-        return pair.image_a.model_id if pair.image_a else None
-    return pair.image_b.model_id if pair.image_b else None
+        return pair.image_a.device_id if pair.image_a else None
+    return pair.image_b.device_id if pair.image_b else None
 
 
-def _build_pair_info(pair: ImagePair, my_score: str | None = None) -> SessionPairInfo:
-    """构建会话中的图对信息（隐藏机型信息）"""
+def _build_pair_info(pair: ImagePair, my_score: str | None = None, comment: str = "") -> SessionPairInfo:
+    """构建会话中的图对信息（隐藏设备信息）"""
     return SessionPairInfo(
         pair_id=pair.id,
         scene_name=pair.scene.name if pair.scene else "",
         image_a_url=_get_image_url(pair, "a"),
         image_b_url=_get_image_url(pair, "b"),
         my_score=my_score,
+        comment=comment,
     )
 
 
@@ -112,10 +114,12 @@ async def get_status(
             new_pairs_count=0, daily_evaluated=0, suggest_rest=False,
         )
 
-    evaluated_count = db.query(Evaluation).filter(
+    # 统计唯一 pair_id 数量（排除重复图对）
+    evaluated_count = db.query(Evaluation.pair_id).filter(
         Evaluation.user_id == current_user.id,
-        Evaluation.status == "submitted"
-    ).count()
+        Evaluation.status == "submitted",
+        Evaluation.is_repeat == 0
+    ).distinct().count()
     remaining_count = total_pairs - evaluated_count
 
     if remaining_count == 0:
@@ -186,10 +190,20 @@ async def start_session(
     if not remaining_pairs:
         raise HTTPException(status_code=400, detail="所有图像对已评价完毕")
 
-    batch_size = min(DEFAULT_BATCH_SIZE, len(remaining_pairs), MAX_BATCH_SIZE)
+    # 计算本轮图对数量
+    new_pair_count = min(DEFAULT_BATCH_SIZE, len(remaining_pairs))
+    repeat_count = max(1, int(new_pair_count * REPEAT_RATIO))
+    batch_size = new_pair_count + repeat_count
+
+    # 选取新图对并排序
     sorted_pairs = sorted(remaining_pairs, key=lambda p: (p.scene_id, p.sort_order))
-    selected_pairs = sorted_pairs[:batch_size]
-    pair_ids = [p.id for p in selected_pairs]
+    selected_pairs = sorted_pairs[:new_pair_count]
+
+    # 从新图对中随机选取重复图对
+    repeat_pairs = random.sample(selected_pairs, repeat_count)
+
+    # 构建 pair_ids：新图对 + 重复图对
+    pair_ids = [p.id for p in selected_pairs] + [p.id for p in repeat_pairs]
 
     session = EvalSession(
         user_id=current_user.id,
@@ -201,10 +215,12 @@ async def start_session(
     db.commit()
     db.refresh(session)
 
-    current_user.last_active_at = datetime.now()
-    db.commit()
-
-    pairs_info = [_build_pair_info(p, None) for p in selected_pairs]
+    # 构建图对信息：重复图对标记为 is_repeat=1
+    pairs_info = []
+    for p in selected_pairs:
+        pairs_info.append(_build_pair_info(p, None))
+    for p in repeat_pairs:
+        pairs_info.append(_build_pair_info(p, None))
 
     return StartSessionResponse(
         session_id=session.id,
@@ -230,26 +246,41 @@ async def resume_session(
     pairs = db.query(ImagePair).filter(ImagePair.id.in_(pair_ids)).all()
     pair_map = {p.id: p for p in pairs}
 
+    # 获取所有草稿评测，包括重复图对
     drafts = db.query(Evaluation).filter(
         Evaluation.user_id == current_user.id,
         Evaluation.session_id == session.id,
         Evaluation.status == "draft"
     ).all()
-    draft_map = {d.pair_id: d.score for d in drafts}
 
+    # 构建草稿映射：(pair_id, is_repeat) -> {score, comment}
+    draft_map = {}
+    for d in drafts:
+        draft_map[(d.pair_id, d.is_repeat)] = {"score": d.score, "comment": d.comment or ""}
+
+    # 构建图对信息，处理重复图对
     pairs_info = []
+    pair_occurrence_count = {}  # 记录每个 pair_id 已出现的次数
+
     for pid in pair_ids:
         if pid in pair_map:
-            pairs_info.append(_build_pair_info(pair_map[pid], draft_map.get(pid)))
+            # 计算当前是第几次出现
+            occurrence = pair_occurrence_count.get(pid, 0)
+            pair_occurrence_count[pid] = occurrence + 1
+
+            # 获取对应的草稿评分
+            is_repeat = 1 if occurrence > 0 else 0
+            draft_info = draft_map.get((pid, is_repeat))
+            my_score = draft_info["score"] if draft_info else None
+            comment = draft_info["comment"] if draft_info else ""
+
+            pairs_info.append(_build_pair_info(pair_map[pid], my_score, comment))
 
     next_cursor = 0
     for i, info in enumerate(pairs_info):
         if info.my_score is None:
             next_cursor = i
             break
-
-    current_user.last_active_at = datetime.now()
-    db.commit()
 
     return ResumeSessionResponse(
         session_id=session.id,
@@ -283,45 +314,66 @@ async def submit_evaluation(
     if not pair:
         raise HTTPException(status_code=404, detail="图像对不存在")
 
-    submitted = db.query(Evaluation).filter(
-        Evaluation.user_id == current_user.id,
-        Evaluation.pair_id == body.pair_id,
-        Evaluation.status == "submitted"
-    ).first()
-    if submitted:
-        raise HTTPException(status_code=409, detail="该图对已提交，不可修改")
+    # 使用前端传入的 is_repeat
+    is_repeat = body.is_repeat
 
-    score_info = SCORE_MAP[body.score]
-    draft = db.query(Evaluation).filter(
+    # 校验：如果 is_repeat=1，确认 pair 在 session 中出现多次
+    pair_ids = session.pair_ids if isinstance(session.pair_ids, list) else []
+    pair_occurrence_count = pair_ids.count(body.pair_id)
+    if is_repeat == 1 and pair_occurrence_count <= 1:
+        raise HTTPException(status_code=400, detail="该图对不是重复图对")
+
+    # 根据 (user_id, pair_id, session_id, is_repeat) 查找已有草稿
+    existing_draft = db.query(Evaluation).filter(
         Evaluation.user_id == current_user.id,
         Evaluation.pair_id == body.pair_id,
+        Evaluation.session_id == body.session_id,
+        Evaluation.is_repeat == is_repeat,
         Evaluation.status == "draft"
     ).first()
 
-    if draft:
-        draft.score = body.score
-        draft.score_label = body.score_label
-        draft.score_a = score_info["score_a"]
-        draft.score_b = score_info["score_b"]
-        draft.left_model_key = body.left_model_key
-        draft.right_model_key = body.right_model_key
-        draft.view_duration_ms = body.view_duration_ms
-        draft.session_id = body.session_id
-    else:
-        draft = Evaluation(
-            user_id=current_user.id,
-            pair_id=body.pair_id,
-            session_id=body.session_id,
-            score=body.score,
-            score_label=body.score_label,
-            score_a=score_info["score_a"],
-            score_b=score_info["score_b"],
-            left_model_key=body.left_model_key,
-            right_model_key=body.right_model_key,
-            view_duration_ms=body.view_duration_ms,
+    if existing_draft:
+        # 更新已有草稿
+        score_info = SCORE_MAP[body.score]
+        existing_draft.score = body.score
+        existing_draft.score_label = body.score_label
+        existing_draft.score_a = score_info["score_a"]
+        existing_draft.score_b = score_info["score_b"]
+        existing_draft.comment = body.comment
+        db.commit()
+        db.refresh(existing_draft)
+        return EvaluationSubmitResponse(
+            evaluation_id=existing_draft.id,
             status="draft",
+            score=existing_draft.score,
         )
-        db.add(draft)
+
+    # 检查是否已提交（不可修改）
+    existing_submitted = db.query(Evaluation).filter(
+        Evaluation.user_id == current_user.id,
+        Evaluation.pair_id == body.pair_id,
+        Evaluation.session_id == body.session_id,
+        Evaluation.is_repeat == is_repeat,
+        Evaluation.status == "submitted"
+    ).first()
+    if existing_submitted:
+        raise HTTPException(status_code=409, detail="该图对已提交，不可修改")
+
+    # 创建新记录
+    score_info = SCORE_MAP[body.score]
+    draft = Evaluation(
+        user_id=current_user.id,
+        pair_id=body.pair_id,
+        session_id=body.session_id,
+        score=body.score,
+        score_label=body.score_label,
+        score_a=score_info["score_a"],
+        score_b=score_info["score_b"],
+        comment=body.comment,
+        is_repeat=is_repeat,
+        status="draft",
+    )
+    db.add(draft)
 
     db.commit()
     db.refresh(draft)
@@ -371,9 +423,10 @@ async def submit_round(
 
     session.status = "completed"
     session.completed_at = now
-
-    current_user.last_active_at = now
     db.commit()
+
+    # 自动触发第一层清洗
+    run_layer1_cleaning(db, current_user.id, session.id)
 
     score_distribution = {"a_much": 0, "a_slight": 0, "same": 0, "b_slight": 0, "b_much": 0}
     for d in drafts:
@@ -381,10 +434,12 @@ async def submit_round(
             score_distribution[d.score] += 1
 
     total_pairs = db.query(ImagePair).count()
-    evaluated_count = db.query(Evaluation).filter(
+    # 统计唯一 pair_id 数量（排除重复图对）
+    evaluated_count = db.query(Evaluation.pair_id).filter(
         Evaluation.user_id == current_user.id,
-        Evaluation.status == "submitted"
-    ).count()
+        Evaluation.status == "submitted",
+        Evaluation.is_repeat == 0
+    ).distinct().count()
     remaining_count = total_pairs - evaluated_count
 
     return SubmitRoundResponse(
@@ -411,6 +466,7 @@ async def get_pair_detail(
     ).first()
 
     my_score = eval_record.score if eval_record else None
+    comment = eval_record.comment if eval_record else ""
 
     return PairDetailResponse(
         pair_id=pair.id,
@@ -418,6 +474,7 @@ async def get_pair_detail(
         image_a_url=_get_image_url(pair, "a"),
         image_b_url=_get_image_url(pair, "b"),
         my_score=my_score,
+        comment=comment or "",
     )
 
 
@@ -468,8 +525,7 @@ async def get_my_evaluations(
         EvaluationOut(
             id=e.id, pair_id=e.pair_id, score=e.score,
             score_label=e.score_label, score_a=e.score_a, score_b=e.score_b,
-            left_model_key=e.left_model_key, right_model_key=e.right_model_key,
-            view_duration_ms=e.view_duration_ms or 0,
+            comment=e.comment or "",
             created_at=str(e.created_at) if e.created_at else None,
         )
         for e in evals
@@ -489,14 +545,13 @@ async def export_csv(
     output = io.StringIO()
     output.write("﻿")
     writer = csv.writer(output)
-    writer.writerow(["序号", "图像对ID", "评分", "评分说明", "A得分", "B得分", "左侧", "右侧", "观察时长(ms)", "提交时间"])
+    writer.writerow(["序号", "图像对ID", "评分", "评分说明", "评价理由", "A得分", "B得分", "提交时间"])
 
     for i, e in enumerate(evals, 1):
         writer.writerow([
             i, e.pair_id, e.score, e.score_label,
+            e.comment or "",
             e.score_a, e.score_b,
-            f"机型{e.left_model_key}", f"机型{e.right_model_key}",
-            e.view_duration_ms or 0,
             str(e.submitted_at) if e.submitted_at else str(e.created_at),
         ])
 

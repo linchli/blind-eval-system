@@ -20,9 +20,9 @@
           <span class="nav-icon">🏞️</span>
           <span class="nav-label">场景管理</span>
         </div>
-        <div class="nav-item" :class="{ active: $route.name === 'ModelManage' }" @click="$router.push('/admin/models')">
+        <div class="nav-item" :class="{ active: $route.name === 'DeviceManage' }" @click="$router.push('/admin/devices')">
           <span class="nav-icon">📷</span>
-          <span class="nav-label">机型管理</span>
+          <span class="nav-label">设备管理</span>
         </div>
         <div class="nav-item" :class="{ active: $route.name === 'ImageManage' }" @click="$router.push('/admin/images')">
           <span class="nav-icon">🖼️</span>
@@ -31,6 +31,19 @@
         <div class="nav-item" :class="{ active: $route.name === 'PairManage' }" @click="$router.push('/admin/pairs')">
           <span class="nav-icon">🔗</span>
           <span class="nav-label">配对管理</span>
+        </div>
+        <div class="nav-item" :class="{ active: $route.name === 'UserManage' }" @click="$router.push('/admin/users')">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">用户管理</span>
+        </div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" :class="{ active: $route.name === 'CleaningManage' }" @click="$router.push('/admin/cleaning')">
+          <span class="nav-icon">🧹</span>
+          <span class="nav-label">数据清洗</span>
+        </div>
+        <div class="nav-item" :class="{ active: $route.name === 'AdminRanking' }" @click="$router.push('/admin/ranking')">
+          <span class="nav-icon">📈</span>
+          <span class="nav-label">排行榜</span>
         </div>
       </nav>
 
@@ -151,6 +164,12 @@ window.showAdminToast = showToastParent
   align-items: center;
 }
 .nav-label { font-size: 14px; font-weight: 500; color: #374151; }
+
+.nav-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 8px 16px;
+}
 
 .main-content {
   flex: 1;

@@ -14,7 +14,7 @@ async function request(url, options = {}) {
     localStorage.removeItem('blind_eval_token')
     localStorage.removeItem('blind_eval_user')
     window.location.hash = '#/login'
-    throw new Error('认证已过期')
+    throw new Error('用户名或密码错误')
   }
   if (!resp.ok) {
     const d = await resp.json().catch(() => ({}))
@@ -31,15 +31,28 @@ export const apiGetMe = () => request('/api/auth/me')
 
 // ==================== 管理后台 ====================
 
+// 大类
+export const apiGetCategories = () => request('/api/admin/categories')
+export const apiCreateCategory = (data) => request('/api/admin/categories', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateCategory = (id, data) => request(`/api/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteCategory = (id) => request(`/api/admin/categories/${id}`, { method: 'DELETE' })
+
+// 子类
+export const apiGetSubcategories = () => request('/api/admin/subcategories')
+export const apiCreateSubcategory = (data) => request('/api/admin/subcategories', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateSubcategory = (id, data) => request(`/api/admin/subcategories/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteSubcategory = (id) => request(`/api/admin/subcategories/${id}`, { method: 'DELETE' })
+
 // 场景
 export const apiGetScenes = () => request('/api/admin/scenes')
 export const apiCreateScene = (data) => request('/api/admin/scenes', { method: 'POST', body: JSON.stringify(data) })
 export const apiUpdateScene = (id, data) => request(`/api/admin/scenes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteScene = (id) => request(`/api/admin/scenes/${id}`, { method: 'DELETE' })
 
-// 机型
-export const apiGetModels = () => request('/api/admin/models')
-export const apiCreateModel = (data) => request('/api/admin/models', { method: 'POST', body: JSON.stringify(data) })
-export const apiUpdateModel = (id, data) => request(`/api/admin/models/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+// 设备
+export const apiGetDevices = () => request('/api/admin/devices')
+export const apiCreateDevice = (data) => request('/api/admin/devices', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateDevice = (id, data) => request(`/api/admin/devices/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 
 // 图像
 export const apiGetImages = (params = {}) => {
@@ -65,6 +78,14 @@ export const apiGetSceneStats = (sceneId) => request(`/api/admin/pairs/scene-sta
 // 概览
 export const apiGetOverview = () => request('/api/admin/overview')
 
+// 用户管理
+export const apiGetUsers = () => request('/api/admin/users')
+export const apiTriggerResetPassword = (userId) => request(`/api/admin/users/${userId}/reset-password`, { method: 'PUT' })
+
+// 密码重置（无需认证）
+export const apiVerifyResetToken = (token) => request(`/api/auth/verify-reset-token?token=${token}`)
+export const apiResetPassword = (data) => request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(data) })
+
 // ==================== 评测核心 API ====================
 
 export const apiGetEvalStatus = () => request('/api/eval/status')
@@ -85,4 +106,26 @@ export const apiExportCSV = () => request('/api/eval/export/csv')
 // ==================== 统计 ====================
 export const apiStatsOverview = () => request('/api/stats/overview')
 export const apiDataCleaning = (sceneId) => request(`/api/stats/cleaning${sceneId ? '?scene_id=' + sceneId : ''}`)
-export const apiGetRanking = (sceneId) => request(`/api/stats/ranking${sceneId ? '?scene_id=' + sceneId : ''}`)
+
+// ==================== 排行榜 API ====================
+
+export const apiGetRanking = (sceneId) =>
+  request(`/api/ranking/list${sceneId ? '?scene_id=' + sceneId : ''}`)
+
+export const apiGetDeviceRanking = (deviceId) =>
+  request(`/api/ranking/device/${deviceId}`)
+
+export const apiGetRankingReport = () =>
+  request('/api/ranking/report')
+
+export const apiRunCleaning = (sceneId) =>
+  request(`/api/ranking/clean-layer2${sceneId ? '?scene_id=' + sceneId : ''}`, { method: 'POST' })
+
+export const apiGetSessionPairs = (sessionId) =>
+  request(`/api/ranking/session/${sessionId}/pairs`)
+
+export const apiGetDeviceWinRate = (deviceId) =>
+  request(`/api/ranking/device/${deviceId}/winrate`)
+
+export const apiGetSceneCompare = (sceneIds) =>
+  request(`/api/ranking/compare?scene_ids=${sceneIds.join(',')}`)

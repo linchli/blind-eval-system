@@ -1,6 +1,7 @@
 """
 FastAPI 应用入口
 """
+import os
 import sys
 from pathlib import Path
 
@@ -18,8 +19,8 @@ from contextlib import asynccontextmanager
 from app.core.config import UPLOAD_DIR, IMAGE_DIR, THUMB_DIR
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import hash_password
-from app.models import User, Scene, DeviceModel, Image, ImagePair, EvalSession, Evaluation
-from app.api import auth, admin, image, eval as eval_router, stats
+from app.models import User, SceneCategory, SceneSubcategory, Scene, DeviceModel, Image, ImagePair, EvalSession, Evaluation, RankingResult
+from app.api import auth, admin, image, eval as eval_router, stats, cleaning, ranking
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
@@ -27,9 +28,10 @@ DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动时建表 + 创建默认用户"""
+    """启动时建表 + 创建默认用户 + 默认场景数据"""
     Base.metadata.create_all(bind=engine)
     _seed_default_users()
+    _seed_default_scenes()
     yield
 
 
@@ -37,20 +39,63 @@ def _seed_default_users():
     db = SessionLocal()
     try:
         defaults = [
-            ("admin", "admin123", "admin", "管理员"),
-            ("evaluator1", "eval123", "evaluator", "评审员1"),
-            ("evaluator2", "eval123", "evaluator", "评审员2"),
-            ("guest", "guest123", "guest", "访客"),
+            ("admin", "admin@test.com", "admin123", "admin", "管理员"),
+            ("eval", "eval@test.com", "123456", "evaluator", "评审员1"),
         ]
-        for username, pwd, role, display in defaults:
+        for username, email, pwd, role, display in defaults:
             if not db.query(User).filter(User.username == username).first():
                 db.add(User(
                     username=username,
+                    email=email,
                     password_hash=hash_password(pwd),
                     role=role,
                     display_name=display,
                 ))
         db.commit()
+    finally:
+        db.close()
+
+
+def _seed_default_scenes():
+    """创建默认大类、子类、场景"""
+    db = SessionLocal()
+    try:
+        categories = [
+            ("公园树荫", "32楼花园"), ("车库", "B4车库"), ("天台", "22楼天台"), ("城市道路", "一楼西南角十字路口"),
+        ]
+        subcategory_names = ["白天", "低照", "夜晚红外", "夜晚白光"]
+
+
+        cat_ids = []
+        for name, location in categories:
+            existing = db.query(SceneCategory).filter(
+                SceneCategory.name == name,
+                SceneCategory.location == location,
+            ).first()
+            if existing:
+                cat_ids.append(existing.id)
+                continue
+            cat = SceneCategory(name=name, location=location)
+            db.add(cat)
+            db.flush()
+            cat_ids.append(cat.id)
+
+        sub_ids = []
+        for name in subcategory_names:
+            existing = db.query(SceneSubcategory).filter(
+                SceneSubcategory.name == name,
+            ).first()
+            if existing:
+                sub_ids.append(existing.id)
+                continue
+            sub = SceneSubcategory(name=name)
+            db.add(sub)
+            db.flush()
+            sub_ids.append(sub.id)
+
+        db.commit()
+    except Exception:
+        db.rollback()
     finally:
         db.close()
 
@@ -83,6 +128,8 @@ app.include_router(admin.router)
 app.include_router(image.router)
 app.include_router(eval_router.router)
 app.include_router(stats.router)
+app.include_router(cleaning.router)
+app.include_router(ranking.router)
 
 
 @app.get("/api/health")

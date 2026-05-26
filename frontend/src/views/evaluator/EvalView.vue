@@ -111,6 +111,20 @@
       </div>
     </transition>
 
+    <!-- ===== 跳过确认弹窗 ===== -->
+    <transition name="modal-fade">
+      <div v-if="showSkipConfirm" class="confirm-overlay" @click.self="showSkipConfirm = false">
+        <div class="confirm-box">
+          <h3>确认跳过当前图对</h3>
+          <p>当前第 {{ store.cursor + 1 }} 组还未评测，确定要跳过吗？</p>
+          <div class="confirm-actions">
+            <button class="btn-cancel" @click="showSkipConfirm = false">取消</button>
+            <button class="btn-confirm" @click="confirmSkip">确定跳过</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- ===== LOADING ===== -->
     <div v-if="store.sessionState === 'LOADING'" class="center-msg">
       <div class="spinner"></div>
@@ -126,9 +140,6 @@
       </svg>
       <h2>暂无评测数据</h2>
       <p>请管理员先初始化演示数据，或上传图像对</p>
-      <div class="action-buttons">
-        <button class="btn-outline" @click="$router.push('/admin')">前往管理后台</button>
-      </div>
     </div>
 
     <!-- ===== ALL_DONE ===== -->
@@ -156,22 +167,7 @@
         <line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
       <h2>评测任务准备</h2>
-      <p>待评测图像对：{{ store.remainingCount }} 对</p>
-      <p class="tip">建议单次评测：40 对，约 6-10 分钟</p>
-      <div class="info-cards">
-        <div class="info-card">
-          <span class="info-num">{{ store.totalPairs }}</span>
-          <span class="info-label">总图对</span>
-        </div>
-        <div class="info-card">
-          <span class="info-num">{{ store.evaluatedCount }}</span>
-          <span class="info-label">已完成</span>
-        </div>
-        <div class="info-card">
-          <span class="info-num">{{ store.remainingCount }}</span>
-          <span class="info-label">待评测</span>
-        </div>
-      </div>
+      <p>总剩余待评测图像对：{{ store.remainingCount }} 对</p>
       <div class="action-buttons">
         <button class="btn-primary" @click="handleStart">开始评测</button>
         <button class="btn-sm" @click="handleLogout">退出</button>
@@ -190,7 +186,7 @@
       </svg>
       <h2>您有一轮评测进行中</h2>
       <div class="resumable-info" v-if="store.statusInfo?.active_session">
-        <p>已评：{{ store.statusInfo.active_session.evaluated_in_session }} / {{ store.statusInfo.active_session.batch_size }} 组</p>
+        <p>该轮已评：{{ store.statusInfo.active_session.evaluated_in_session }} / {{ store.statusInfo.active_session.batch_size }} 组</p>
         <div class="mini-progress">
           <div class="mini-progress-bar"
                :style="{ width: (store.statusInfo.active_session.evaluated_in_session / store.statusInfo.active_session.batch_size * 100) + '%' }">
@@ -313,6 +309,28 @@
         </div>
       </div>
 
+      <!-- 补充理由 -->
+      <div class="comment-row">
+        <button class="voice-btn" title="语音输入">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+        </button>
+        <label class="comment-label">补充理由</label>
+        <input
+          class="comment-input"
+          type="text"
+          v-model="commentText"
+          placeholder="选填，可从清晰度/色彩/亮度/噪声/动态人形等方面简述评分依据"
+          maxlength="500"
+          @blur="saveComment"
+        />
+        <span class="comment-count" v-if="commentText">{{ commentText.length }}/500</span>
+      </div>
+
       <!-- 底部控制栏 -->
       <div class="score-area">
         <div class="control-row">
@@ -329,6 +347,20 @@
 
           <!-- 5 个评分按钮 -->
           <div class="score-group-wrap">
+            <!-- 极速评分倒计时 -->
+            <div v-if="showCountdown" class="countdown-ring-wrap">
+              <svg class="countdown-ring" width="24" height="24" viewBox="0 0 24 24">
+                <circle
+                  cx="12" cy="12" r="10" fill="none"
+                  stroke="#facc15" stroke-width="2"
+                  stroke-linecap="round"
+                  :stroke-dasharray="62.83"
+                  :stroke-dashoffset="62.83 * (countdownProgress / 100)"
+                  transform="rotate(-90 12 12)"
+                  style="transition: stroke-dashoffset 0.05s linear;"
+                />
+              </svg>
+            </div>
             <!-- 评分修改提示（从按钮上方弹出） -->
             <transition name="score-toast-fade">
               <div v-if="scoreToast.show" class="score-toast" :class="scoreToast.type">
@@ -342,6 +374,7 @@
                         selected: store.currentScore === s.key,
                         'dimmed': isScored && store.currentScore !== s.key
                       }]"
+                      :disabled="!canScore"
                       @click="handleScore(s)">
                 {{ s.label }}
               </button>
@@ -387,9 +420,42 @@ const store = useEvalStore()
 const helpOpen = ref(false)
 const showRestConfirm = ref(false)
 const showSubmitConfirm = ref(false)
+const showSkipConfirm = ref(false)
 const lastSide = ref('')
 const currentScale = ref(1.0)
 let autoAdvanceTimer = null
+
+/* ---- 补充理由 ---- */
+const commentText = ref('')
+const commentSnapshot = ref({})  // 本地快照 { key: comment }，切换图对时用
+
+function getCommentKey() {
+  if (!store.currentPair) return null
+  return `${store.currentPair.pair_id}_${store.cursor}`
+}
+
+function saveComment() {
+  const key = getCommentKey()
+  if (key && commentText.value) {
+    commentSnapshot.value[key] = commentText.value
+    store.commentMap[key] = commentText.value
+  }
+}
+
+function loadComment() {
+  const key = getCommentKey()
+  if (key) {
+    commentText.value = store.commentMap[key] || commentSnapshot.value[key] || ''
+  } else {
+    commentText.value = ''
+  }
+}
+
+/* ---- 极速评分倒计时 ---- */
+const canScore = ref(false)
+const countdownProgress = ref(0)
+const showCountdown = ref(false)
+let countdownRaf = null
 
 /* ---- 评分修改提示 ---- */
 const scoreToast = ref({ show: false, msg: '', type: 'success' })
@@ -478,7 +544,10 @@ async function handleScore(s) {
     lastSide.value = ''
   }
 
-  const result = await store.submitScore(s.key, s.label)
+  // 保存理由
+  saveComment()
+
+  const result = await store.submitScore(s.key, s.label, commentText.value)
   if (result.success) {
     // 仅修改评分时在按钮上方弹出提示，首次评分不弹
     if (wasScored) {
@@ -488,9 +557,17 @@ async function handleScore(s) {
     // 评分后自动跳下一个未评对
     if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer)
     autoAdvanceTimer = setTimeout(() => {
-      const nextCursor = store.nextUnscoredCursor
-      if (nextCursor < store.sessionTotalCount - 1 && nextCursor !== store.cursor) {
-        store.goTo(nextCursor)
+      // 直接在本地计算下一个未评对，避免依赖 computed 属性
+      const pairList = store.pairList
+      const scoreMap = store.scoreMap
+      for (let i = 0; i < pairList.length; i++) {
+        const key = `${pairList[i].pair_id}_${i}`
+        if (scoreMap[key] === undefined) {
+          if (i !== store.cursor) {
+            store.goTo(i)
+          }
+          break
+        }
       }
       autoAdvanceTimer = null
     }, 350)
@@ -500,11 +577,25 @@ async function handleScore(s) {
 }
 
 function handlePrev() {
+  saveComment()
   store.goPrev()
   lastSide.value = ''
 }
 
 function handleNext() {
+  // 如果当前组未评测，弹窗确认
+  if (!isScored.value) {
+    showSkipConfirm.value = true
+    return
+  }
+  saveComment()
+  store.goNext()
+  lastSide.value = ''
+}
+
+function confirmSkip() {
+  showSkipConfirm.value = false
+  saveComment()
   store.goNext()
   lastSide.value = ''
 }
@@ -607,7 +698,33 @@ watch(() => store.currentPair?.pair_id, async () => {
   destroyPanzoom('right')
   await nextTick()
   ensurePanzoom()
+  loadComment()
 })
+
+// 极速评分倒计时
+watch(() => store.currentPair?.pair_id, () => {
+  canScore.value = false
+  showCountdown.value = true
+  countdownProgress.value = 0
+
+  if (countdownRaf) cancelAnimationFrame(countdownRaf)
+
+  const startTime = Date.now()
+  const duration = 1500
+
+  function tick() {
+    const elapsed = Date.now() - startTime
+    countdownProgress.value = Math.min(100, (elapsed / duration) * 100)
+
+    if (elapsed >= duration) {
+      canScore.value = true
+      setTimeout(() => { showCountdown.value = false }, 300)
+    } else {
+      countdownRaf = requestAnimationFrame(tick)
+    }
+  }
+  countdownRaf = requestAnimationFrame(tick)
+}, { immediate: true })
 
 /* ---- 生命周期 ---- */
 onMounted(async () => {
@@ -619,6 +736,7 @@ onUnmounted(() => {
   destroyPanzoom('left')
   destroyPanzoom('right')
   if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer)
+  if (countdownRaf) cancelAnimationFrame(countdownRaf)
 })
 </script>
 
@@ -761,16 +879,6 @@ onUnmounted(() => {
 
 /* ===== READY_TO_START 卡片 ===== */
 .ready-box .tip { font-size: 13px; color: #94a3b8; margin-top: 4px; }
-.info-cards {
-  display: flex; gap: 16px; margin: 20px 0;
-}
-.info-card {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 16px 24px; background: #f8fafc;
-  border: 1px solid #e2e8f0; border-radius: 10px;
-}
-.info-num { font-size: 28px; font-weight: 700; color: #1e40af; }
-.info-label { font-size: 12px; color: #64748b; margin-top: 4px; }
 
 /* ===== RESUMABLE 卡片 ===== */
 .resumable-box .tip { font-size: 13px; color: #94a3b8; margin-top: 4px; }
@@ -851,7 +959,7 @@ onUnmounted(() => {
 .submit-btn.submitted { border: 1px solid #86efac; background: #f0fdf4; color: #16a34a; cursor: default; }
 
 /* ===== 双图对比 ===== */
-.compare-area { flex: 1; display: flex; gap: 12px; min-height: 0; }
+.compare-area { flex: 1; display: flex; gap: 12px; min-height: 0;max-height: calc(100vh - 250px);}
 .img-panel {
   flex: 1; display: flex; flex-direction: column;
   background: #fff; border-radius: 12px;
@@ -890,6 +998,47 @@ onUnmounted(() => {
 
 /* ===== 底部控制栏 ===== */
 .score-area { margin-top: 12px; }
+
+/* ===== 补充理由 ===== */
+.comment-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.voice-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  border: none; background: transparent;
+  color: #94a3b8; cursor: pointer;
+  flex-shrink: 0; transition: all 0.2s;
+}
+.voice-btn:hover { background: #f1f5f9; color: #3b82f6; }
+.comment-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+.comment-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: #334155;
+  background: transparent;
+  padding: 4px 0;
+}
+.comment-input::placeholder { color: #94a3b8; }
+.comment-count {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
 .control-row {
   display: flex; align-items: center; justify-content: center; gap: 0;
 }
@@ -939,6 +1088,7 @@ onUnmounted(() => {
 /* 已评分时未选中按钮：降低不透明度但保留hover和可点击 */
 .score-btn.dimmed { opacity: 0.45; }
 .score-btn.dimmed:hover { opacity: 0.85; }
+.score-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 .score-btn:active:not(.selected) { transform: scale(0.96); }
 
 /* ===== 评分修改提示（按钮上方弹出） ===== */
@@ -1032,6 +1182,18 @@ onUnmounted(() => {
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 .modal-fade-enter-from .confirm-box, .modal-fade-leave-to .confirm-box { transform: scale(0.96) translateY(8px); }
 
+/* ===== 极速评分倒计时 ===== */
+.countdown-ring-wrap {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+}
+.countdown-ring {
+  display: block;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
   .compare-area { flex-direction: column; }
@@ -1042,7 +1204,8 @@ onUnmounted(() => {
   .top-bar { padding: 8px 12px; }
   .eval-main { padding: 10px 12px; }
   .help-popover { width: 290px; left: 12px; }
-  .info-cards { flex-wrap: wrap; justify-content: center; }
   .score-dist { flex-wrap: wrap; justify-content: center; }
+  .comment-row { flex-wrap: wrap; }
+  .comment-input { min-width: 0; }
 }
 </style>
