@@ -14,6 +14,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 
 from app.core.config import UPLOAD_DIR, IMAGE_DIR, THUMB_DIR
@@ -24,6 +25,9 @@ from app.api import auth, admin, image, eval as eval_router, stats, cleaning, ra
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
+
+# 判断是否为生产模式（前端已构建）
+IS_PRODUCTION = DIST_DIR.exists() and any(DIST_DIR.glob("*.html"))
 
 
 @asynccontextmanager
@@ -107,16 +111,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS - 允许所有来源（开发和生产模式均可通过任意 IP 访问）
+allow_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 静态文件
+# 静态文件 - 图片和缩略图
 if IMAGE_DIR.exists():
     app.mount("/uploads/images", StaticFiles(directory=str(IMAGE_DIR), html=False), name="images")
 if THUMB_DIR.exists():
@@ -135,6 +141,20 @@ app.include_router(ranking.router)
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "0.3.0"}
+
+
+# 生产模式：提供前端静态文件
+if IS_PRODUCTION:
+    # 挂载前端静态资源（JS、CSS、图片等）
+    app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """SPA 路由：所有非 API 路径都返回 index.html"""
+        file_path = DIST_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(DIST_DIR / "index.html"))
 
 
 if __name__ == "__main__":

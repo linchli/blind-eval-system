@@ -476,6 +476,7 @@ const leftWrapRef = ref(null)
 const rightWrapRef = ref(null)
 const leftTargetRef = ref(null)
 const rightTargetRef = ref(null)
+const isSyncingPan = ref(false)
 
 /* ---- 评分选项 ---- */
 const scoreOptions = [
@@ -651,6 +652,15 @@ function syncZoom(sourceSide, scale) {
   currentScale.value = scale
 }
 
+function syncPan(sourceSide, x, y) {
+  if (isSyncingPan.value) return
+  isSyncingPan.value = true
+  const targetInstance = sourceSide === 'left' ? rightPanzoom.value : leftPanzoom.value
+  if (targetInstance) targetInstance.pan(x, y, { animate: false })
+  // 使用 setTimeout 延迟重置标志位，确保同一帧内的事件被正确忽略
+  setTimeout(() => { isSyncingPan.value = false }, 0)
+}
+
 function destroyPanzoom(side) {
   const instance = side === 'left' ? leftPanzoom.value : rightPanzoom.value
   if (instance?.destroy) instance.destroy()
@@ -658,6 +668,10 @@ function destroyPanzoom(side) {
   if (target?._wheelHandler) {
     target.removeEventListener('wheel', target._wheelHandler)
     delete target._wheelHandler
+  }
+  if (target?._panHandler) {
+    target.removeEventListener('panzoompan', target._panHandler)
+    delete target._panHandler
   }
   if (side === 'left') leftPanzoom.value = null
   else rightPanzoom.value = null
@@ -675,10 +689,24 @@ async function initPanzoom(side) {
     pinchAndPan: true, cursor: 'grab', zoomDoubleTapSpeed: 0,
   })
   setupWheelHandler(side, panzoom)
+  const panHandler = (e) => {
+    if (!isSyncingPan.value) {
+      syncPan(side, e.detail.x, e.detail.y)
+    }
+  }
+  target.addEventListener('panzoompan', panHandler)
+  if (side === 'left') leftTargetRef.value._panHandler = panHandler
+  else rightTargetRef.value._panHandler = panHandler
   target.addEventListener('dblclick', (e) => {
     e.stopPropagation()
+    // 先禁用同步，避免重置过程中触发同步
+    isSyncingPan.value = true
     panzoom.reset()
     syncZoom(side, 1)
+    const otherInstance = side === 'left' ? rightPanzoom.value : leftPanzoom.value
+    if (otherInstance) otherInstance.reset()
+    // 延迟恢复同步
+    setTimeout(() => { isSyncingPan.value = false }, 0)
   })
   if (side === 'left') leftPanzoom.value = panzoom
   else rightPanzoom.value = panzoom
