@@ -1,6 +1,7 @@
 """
 图像与配对路由
 """
+import os
 import json
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
@@ -19,7 +20,7 @@ from ..schemas.image import (
     PairGenerateResult, ImagePairOut,
 )
 from ..schemas.common import ApiResponse
-from ..services.image_service import save_image_file, generate_pairs_for_scene, preview_pair_generation
+from ..services.image_service import save_image_file, delete_image_files, generate_pairs_for_scene, preview_pair_generation
 
 router = APIRouter(prefix="/api/admin", tags=["图像管理"])
 
@@ -145,6 +146,132 @@ async def upload_image(
     )
 
 
+@router.put("/images/{image_id}", response_model=ImageOut)
+async def update_image(
+    image_id: int,
+    shot_attrs: str = Form("{}"),
+    env_attrs: str = Form("{}"),
+    isp_attrs: str = Form("{}"),
+    note_attrs: str = Form("{}"),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """仅更新图像元信息（不替换文件）"""
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="图像不存在")
+
+    try:
+        image.shot_attrs = json.loads(shot_attrs) if shot_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="shot_attrs JSON 格式错误")
+    try:
+        image.env_attrs = json.loads(env_attrs) if env_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="env_attrs JSON 格式错误")
+    try:
+        image.isp_attrs = json.loads(isp_attrs) if isp_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="isp_attrs JSON 格式错误")
+    try:
+        image.note_attrs = json.loads(note_attrs) if note_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="note_attrs JSON 格式错误")
+
+    db.commit()
+    db.refresh(image)
+
+    return ImageOut(
+        id=image.id,
+        scene_id=image.scene_id,
+        device_id=image.device_id,
+        scene_name=image.scene.name if image.scene else "",
+        device_name=image.device.name if image.device else "",
+        image_path=image.image_path,
+        thumb_path=image.thumb_path or "",
+        shot_attrs=image.shot_attrs or {},
+        env_attrs=image.env_attrs or {},
+        isp_attrs=image.isp_attrs or {},
+        note_attrs=image.note_attrs or {},
+    )
+
+
+@router.post("/images/{image_id}/replace", response_model=ImageOut)
+async def replace_image(
+    image_id: int,
+    image_file: UploadFile = File(...),
+    shot_attrs: str = Form("{}"),
+    env_attrs: str = Form("{}"),
+    isp_attrs: str = Form("{}"),
+    note_attrs: str = Form("{}"),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """替换图像文件（文件名必须与原文件一致）"""
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="图像不存在")
+
+    # 校验文件名必须一致
+    old_filename = image.image_path.rsplit("/", 1)[-1]
+    new_filename = image_file.filename or "image.jpg"
+    if new_filename != old_filename:
+        raise HTTPException(
+            status_code=400,
+            detail=f'替换失败：新文件名 "{new_filename}" 与原文件名 "{old_filename}" 不一致，请上传同名文件',
+        )
+
+    scene = image.scene
+    device = image.device
+
+    # 删除旧文件
+    delete_image_files(image.image_path, image.thumb_path)
+
+    # 保存新文件（内部会自动生成缩略图）
+    file_content = await image_file.read()
+    image_url, thumb_path = save_image_file(
+        file_content, scene.folder_name, device.folder_name, new_filename
+    )
+
+    image.image_path = image_url
+    image.thumb_path = thumb_path
+
+    # 更新属性
+    try:
+        image.shot_attrs = json.loads(shot_attrs) if shot_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="shot_attrs JSON 格式错误")
+    try:
+        image.env_attrs = json.loads(env_attrs) if env_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="env_attrs JSON 格式错误")
+    try:
+        image.isp_attrs = json.loads(isp_attrs) if isp_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="isp_attrs JSON 格式错误")
+    try:
+        image.note_attrs = json.loads(note_attrs) if note_attrs else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="note_attrs JSON 格式错误")
+
+    db.commit()
+    db.refresh(image)
+
+    return ImageOut(
+        id=image.id,
+        scene_id=image.scene_id,
+        device_id=image.device_id,
+        scene_name=scene.name,
+        device_name=device.name,
+        image_path=image.image_path,
+        thumb_path=image.thumb_path or "",
+        shot_attrs=image.shot_attrs or {},
+        env_attrs=image.env_attrs or {},
+        isp_attrs=image.isp_attrs or {},
+        note_attrs=image.note_attrs or {},
+    )
+
+
 @router.delete("/images/{image_id}", response_model=ApiResponse)
 async def delete_image(
     image_id: int,
@@ -161,6 +288,9 @@ async def delete_image(
     ).count()
     if pair_count > 0:
         raise HTTPException(status_code=400, detail="该图像已被配对，无法删除")
+
+    # 删除磁盘文件
+    delete_image_files(image.image_path, image.thumb_path)
 
     db.delete(image)
     db.commit()

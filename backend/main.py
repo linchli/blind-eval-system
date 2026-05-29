@@ -21,7 +21,7 @@ from app.core.config import UPLOAD_DIR, IMAGE_DIR, THUMB_DIR
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import hash_password
 from app.models import User, SceneCategory, SceneSubcategory, Scene, DeviceModel, Image, ImagePair, EvalSession, Evaluation, RankingResult
-from app.api import auth, admin, image, eval as eval_router, stats, cleaning, ranking
+from app.api import auth, admin, image, eval as eval_router, stats, cleaning, ranking, batch_upload
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
@@ -136,6 +136,7 @@ app.include_router(eval_router.router)
 app.include_router(stats.router)
 app.include_router(cleaning.router)
 app.include_router(ranking.router)
+app.include_router(batch_upload.router)
 
 
 @app.get("/api/health")

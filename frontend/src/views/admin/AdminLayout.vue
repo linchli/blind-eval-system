@@ -28,6 +28,10 @@
           <span class="nav-icon">🖼️</span>
           <span class="nav-label">图像管理</span>
         </div>
+        <div class="nav-item" :class="{ active: $route.name === 'BatchUpload' }" @click="$router.push('/admin/batch-upload')">
+          <span class="nav-icon">📤</span>
+          <span class="nav-label">批量上传</span>
+        </div>
         <div class="nav-item" :class="{ active: $route.name === 'PairManage' }" @click="$router.push('/admin/pairs')">
           <span class="nav-icon">🔗</span>
           <span class="nav-label">配对管理</span>

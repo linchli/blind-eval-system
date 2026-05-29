@@ -72,6 +72,10 @@
           <span class="link-icon">🖼️</span>
           <span class="link-label">图像管理</span>
         </button>
+        <button class="link-card" @click="$router.push('/admin/batch-upload')">
+          <span class="link-icon">📤</span>
+          <span class="link-label">批量上传</span>
+        </button>
         <button class="link-card" @click="$router.push('/admin/pairs')">
           <span class="link-icon">🔗</span>
           <span class="link-label">配对管理</span>

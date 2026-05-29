@@ -33,6 +33,7 @@ const routes = [
       { path: 'users', name: 'UserManage', component: UserManage },
       { path: 'cleaning', name: 'CleaningManage', component: () => import('../views/admin/CleaningView.vue'), meta: { requiresAuth: true, roles: ['admin'] } },
       { path: 'ranking', name: 'AdminRanking', component: RankingView, meta: { requiresAuth: true, roles: ['admin'] } },
+      { path: 'batch-upload', name: 'BatchUpload', component: () => import('../views/admin/BatchUpload.vue') },
     ],
   },
 ]

@@ -5,7 +5,9 @@ const API_BASE = ''
 
 async function request(url, options = {}) {
   const token = localStorage.getItem('blind_eval_token')
-  const headers = { 'Content-Type': 'application/json', ...options.headers }
+  // FormData 不设置 Content-Type，让浏览器自动设置 multipart boundary
+  const isFormData = options.body instanceof FormData
+  const headers = isFormData ? { ...options.headers } : { 'Content-Type': 'application/json', ...options.headers }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   const resp = await fetch(`${API_BASE}${url}`, { ...options, headers })
@@ -65,6 +67,16 @@ export const apiUploadImage = (formData) => request('/api/admin/images', {
   headers: {}, // 让浏览器自动设置 Content-Type
 })
 export const apiDeleteImage = (id) => request(`/api/admin/images/${id}`, { method: 'DELETE' })
+export const apiUpdateImage = (imageId, formData) => request(`/api/admin/images/${imageId}`, {
+  method: 'PUT',
+  body: formData,
+  headers: {},
+})
+export const apiReplaceImage = (imageId, formData) => request(`/api/admin/images/${imageId}/replace`, {
+  method: 'POST',
+  body: formData,
+  headers: {},
+})
 
 // 配对
 export const apiGetPairs = (params = {}) => {
@@ -129,3 +141,44 @@ export const apiGetDeviceWinRate = (deviceId) =>
 
 export const apiGetSceneCompare = (sceneIds) =>
   request(`/api/ranking/compare?scene_ids=${sceneIds.join(',')}`)
+
+// ==================== 批量上传 ====================
+
+export const apiBatchUpload = (formData, onProgress) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const token = localStorage.getItem('blind_eval_token')
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    })
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 401) {
+        localStorage.removeItem('blind_eval_token')
+        localStorage.removeItem('blind_eval_user')
+        window.location.hash = '#/login'
+        reject(new Error('用户名或密码错误'))
+        return
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText))
+      } else {
+        try {
+          const d = JSON.parse(xhr.responseText)
+          reject(new Error(d.detail || `请求失败 (${xhr.status})`))
+        } catch {
+          reject(new Error(`请求失败 (${xhr.status})`))
+        }
+      }
+    })
+
+    xhr.addEventListener('error', () => reject(new Error('网络错误')))
+
+    xhr.open('POST', '/api/admin/batch-upload/')
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.send(formData)
+  })
+}

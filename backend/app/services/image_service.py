@@ -7,7 +7,7 @@ from PIL import Image as PILImage
 from sqlalchemy.orm import Session
 from itertools import combinations
 
-from ..core.config import IMAGE_DIR, THUMB_DIR, THUMB_SIZE
+from ..core.config import BASE_DIR, IMAGE_DIR, THUMB_DIR, THUMB_SIZE
 from ..models.image import Image
 from ..models.image_pair import ImagePair
 from ..models.scene import Scene
@@ -41,6 +41,17 @@ def save_image_file(file_content: bytes, scene_folder: str, device_folder: str, 
 
     image_url = f"/uploads/images/{scene_folder}/{device_folder}/{filename}"
     return image_url, thumb_path
+
+
+def delete_image_files(image_path: str, thumb_path: str):
+    """删除图像文件和缩略图"""
+    for rel_path in [image_path, thumb_path]:
+        if not rel_path:
+            continue
+        # rel_path 格式: /uploads/images/scene/device/file.jpg
+        physical = BASE_DIR / rel_path.lstrip("/")
+        if physical.is_file():
+            physical.unlink()
 
 
 def generate_pairs_for_scene(db: Session, scene_id: int) -> dict:
