@@ -48,3 +48,7 @@ SCORE_MAP = {
 
 # ==================== 缩略图 ====================
 THUMB_SIZE = (300, 300)  # 缩略图最大尺寸
+
+# ==================== 批量上传 ====================
+MAX_BATCH_SIZE = int(os.getenv("MAX_BATCH_SIZE", "1000"))
+DAILY_LIMIT = int(os.getenv("DAILY_LIMIT", "500"))

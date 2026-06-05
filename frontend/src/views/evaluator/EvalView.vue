@@ -140,9 +140,6 @@
       </svg>
       <h2>暂无评测数据</h2>
       <p>请管理员先初始化演示数据，或上传图像对</p>
-      <div class="action-buttons">
-        <button class="btn-outline" @click="$router.push('/admin')">前往管理后台</button>
-      </div>
     </div>
 
     <!-- ===== ALL_DONE ===== -->
@@ -312,6 +309,28 @@
         </div>
       </div>
 
+      <!-- 补充理由 -->
+      <div class="comment-row">
+        <button class="voice-btn" title="语音输入">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+        </button>
+        <label class="comment-label">补充理由</label>
+        <input
+          class="comment-input"
+          type="text"
+          v-model="commentText"
+          placeholder="选填，可从清晰度/色彩/亮度/噪声/动态人形等方面简述评分依据"
+          maxlength="500"
+          @blur="saveComment"
+        />
+        <span class="comment-count" v-if="commentText">{{ commentText.length }}/500</span>
+      </div>
+
       <!-- 底部控制栏 -->
       <div class="score-area">
         <div class="control-row">
@@ -406,6 +425,32 @@ const lastSide = ref('')
 const currentScale = ref(1.0)
 let autoAdvanceTimer = null
 
+/* ---- 补充理由 ---- */
+const commentText = ref('')
+const commentSnapshot = ref({})  // 本地快照 { key: comment }，切换图对时用
+
+function getCommentKey() {
+  if (!store.currentPair) return null
+  return `${store.currentPair.pair_id}_${store.cursor}`
+}
+
+function saveComment() {
+  const key = getCommentKey()
+  if (key && commentText.value) {
+    commentSnapshot.value[key] = commentText.value
+    store.commentMap[key] = commentText.value
+  }
+}
+
+function loadComment() {
+  const key = getCommentKey()
+  if (key) {
+    commentText.value = store.commentMap[key] || commentSnapshot.value[key] || ''
+  } else {
+    commentText.value = ''
+  }
+}
+
 /* ---- 极速评分倒计时 ---- */
 const canScore = ref(false)
 const countdownProgress = ref(0)
@@ -431,6 +476,7 @@ const leftWrapRef = ref(null)
 const rightWrapRef = ref(null)
 const leftTargetRef = ref(null)
 const rightTargetRef = ref(null)
+const isSyncingPan = ref(false)
 
 /* ---- 评分选项 ---- */
 const scoreOptions = [
@@ -499,7 +545,10 @@ async function handleScore(s) {
     lastSide.value = ''
   }
 
-  const result = await store.submitScore(s.key, s.label)
+  // 保存理由
+  saveComment()
+
+  const result = await store.submitScore(s.key, s.label, commentText.value)
   if (result.success) {
     // 仅修改评分时在按钮上方弹出提示，首次评分不弹
     if (wasScored) {
@@ -529,6 +578,7 @@ async function handleScore(s) {
 }
 
 function handlePrev() {
+  saveComment()
   store.goPrev()
   lastSide.value = ''
 }
@@ -539,12 +589,14 @@ function handleNext() {
     showSkipConfirm.value = true
     return
   }
+  saveComment()
   store.goNext()
   lastSide.value = ''
 }
 
 function confirmSkip() {
   showSkipConfirm.value = false
+  saveComment()
   store.goNext()
   lastSide.value = ''
 }
@@ -600,6 +652,15 @@ function syncZoom(sourceSide, scale) {
   currentScale.value = scale
 }
 
+function syncPan(sourceSide, x, y) {
+  if (isSyncingPan.value) return
+  isSyncingPan.value = true
+  const targetInstance = sourceSide === 'left' ? rightPanzoom.value : leftPanzoom.value
+  if (targetInstance) targetInstance.pan(x, y, { animate: false })
+  // 使用 setTimeout 延迟重置标志位，确保同一帧内的事件被正确忽略
+  setTimeout(() => { isSyncingPan.value = false }, 0)
+}
+
 function destroyPanzoom(side) {
   const instance = side === 'left' ? leftPanzoom.value : rightPanzoom.value
   if (instance?.destroy) instance.destroy()
@@ -607,6 +668,10 @@ function destroyPanzoom(side) {
   if (target?._wheelHandler) {
     target.removeEventListener('wheel', target._wheelHandler)
     delete target._wheelHandler
+  }
+  if (target?._panHandler) {
+    target.removeEventListener('panzoompan', target._panHandler)
+    delete target._panHandler
   }
   if (side === 'left') leftPanzoom.value = null
   else rightPanzoom.value = null
@@ -624,10 +689,24 @@ async function initPanzoom(side) {
     pinchAndPan: true, cursor: 'grab', zoomDoubleTapSpeed: 0,
   })
   setupWheelHandler(side, panzoom)
+  const panHandler = (e) => {
+    if (!isSyncingPan.value) {
+      syncPan(side, e.detail.x, e.detail.y)
+    }
+  }
+  target.addEventListener('panzoompan', panHandler)
+  if (side === 'left') leftTargetRef.value._panHandler = panHandler
+  else rightTargetRef.value._panHandler = panHandler
   target.addEventListener('dblclick', (e) => {
     e.stopPropagation()
+    // 先禁用同步，避免重置过程中触发同步
+    isSyncingPan.value = true
     panzoom.reset()
     syncZoom(side, 1)
+    const otherInstance = side === 'left' ? rightPanzoom.value : leftPanzoom.value
+    if (otherInstance) otherInstance.reset()
+    // 延迟恢复同步
+    setTimeout(() => { isSyncingPan.value = false }, 0)
   })
   if (side === 'left') leftPanzoom.value = panzoom
   else rightPanzoom.value = panzoom
@@ -647,6 +726,7 @@ watch(() => store.currentPair?.pair_id, async () => {
   destroyPanzoom('right')
   await nextTick()
   ensurePanzoom()
+  loadComment()
 })
 
 // 极速评分倒计时
@@ -658,8 +738,7 @@ watch(() => store.currentPair?.pair_id, () => {
   if (countdownRaf) cancelAnimationFrame(countdownRaf)
 
   const startTime = Date.now()
-  // const duration = 1500
-  const duration = 0
+  const duration = 1500
 
   function tick() {
     const elapsed = Date.now() - startTime
@@ -908,7 +987,7 @@ onUnmounted(() => {
 .submit-btn.submitted { border: 1px solid #86efac; background: #f0fdf4; color: #16a34a; cursor: default; }
 
 /* ===== 双图对比 ===== */
-.compare-area { flex: 1; display: flex; gap: 12px; min-height: 0; }
+.compare-area { flex: 1; display: flex; gap: 12px; min-height: 0;max-height: calc(100vh - 250px);}
 .img-panel {
   flex: 1; display: flex; flex-direction: column;
   background: #fff; border-radius: 12px;
@@ -947,6 +1026,47 @@ onUnmounted(() => {
 
 /* ===== 底部控制栏 ===== */
 .score-area { margin-top: 12px; }
+
+/* ===== 补充理由 ===== */
+.comment-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.voice-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  border: none; background: transparent;
+  color: #94a3b8; cursor: pointer;
+  flex-shrink: 0; transition: all 0.2s;
+}
+.voice-btn:hover { background: #f1f5f9; color: #3b82f6; }
+.comment-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+.comment-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: #334155;
+  background: transparent;
+  padding: 4px 0;
+}
+.comment-input::placeholder { color: #94a3b8; }
+.comment-count {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
 .control-row {
   display: flex; align-items: center; justify-content: center; gap: 0;
 }
@@ -1113,5 +1233,7 @@ onUnmounted(() => {
   .eval-main { padding: 10px 12px; }
   .help-popover { width: 290px; left: 12px; }
   .score-dist { flex-wrap: wrap; justify-content: center; }
+  .comment-row { flex-wrap: wrap; }
+  .comment-input { min-width: 0; }
 }
 </style>

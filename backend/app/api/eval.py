@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.dependencies import get_current_user
-from ..core.config import SCORE_MAP, DEFAULT_BATCH_SIZE, REST_AFTER_BATCHES, REPEAT_RATIO
+from ..core.config import SCORE_MAP, DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE, DAILY_LIMIT, REST_AFTER_BATCHES, REPEAT_RATIO
 from ..models.user import User
 from ..models.image_pair import ImagePair
 from ..models.image import Image
@@ -43,7 +43,7 @@ def _get_device_id(pair: ImagePair, side: str) -> int | None:
     return pair.image_b.device_id if pair.image_b else None
 
 
-def _build_pair_info(pair: ImagePair, my_score: str | None = None) -> SessionPairInfo:
+def _build_pair_info(pair: ImagePair, my_score: str | None = None, comment: str = "") -> SessionPairInfo:
     """构建会话中的图对信息（隐藏设备信息）"""
     return SessionPairInfo(
         pair_id=pair.id,
@@ -51,6 +51,7 @@ def _build_pair_info(pair: ImagePair, my_score: str | None = None) -> SessionPai
         image_a_url=_get_image_url(pair, "a"),
         image_b_url=_get_image_url(pair, "b"),
         my_score=my_score,
+        comment=comment,
     )
 
 
@@ -190,7 +191,7 @@ async def start_session(
 
     # 计算本轮图对数量
     new_pair_count = min(DEFAULT_BATCH_SIZE, len(remaining_pairs))
-    repeat_count = max(0, int(new_pair_count * REPEAT_RATIO))
+    repeat_count = max(1, int(new_pair_count * REPEAT_RATIO))
     batch_size = new_pair_count + repeat_count
 
     # 选取新图对并排序
@@ -212,9 +213,6 @@ async def start_session(
     db.add(session)
     db.commit()
     db.refresh(session)
-
-    current_user.last_active_at = datetime.now()
-    db.commit()
 
     # 构建图对信息：重复图对标记为 is_repeat=1
     pairs_info = []
@@ -254,10 +252,10 @@ async def resume_session(
         Evaluation.status == "draft"
     ).all()
 
-    # 构建草稿映射：(pair_id, is_repeat) -> score
+    # 构建草稿映射：(pair_id, is_repeat) -> {score, comment}
     draft_map = {}
     for d in drafts:
-        draft_map[(d.pair_id, d.is_repeat)] = d.score
+        draft_map[(d.pair_id, d.is_repeat)] = {"score": d.score, "comment": d.comment or ""}
 
     # 构建图对信息，处理重复图对
     pairs_info = []
@@ -271,18 +269,17 @@ async def resume_session(
 
             # 获取对应的草稿评分
             is_repeat = 1 if occurrence > 0 else 0
-            my_score = draft_map.get((pid, is_repeat))
+            draft_info = draft_map.get((pid, is_repeat))
+            my_score = draft_info["score"] if draft_info else None
+            comment = draft_info["comment"] if draft_info else ""
 
-            pairs_info.append(_build_pair_info(pair_map[pid], my_score))
+            pairs_info.append(_build_pair_info(pair_map[pid], my_score, comment))
 
     next_cursor = 0
     for i, info in enumerate(pairs_info):
         if info.my_score is None:
             next_cursor = i
             break
-
-    current_user.last_active_at = datetime.now()
-    db.commit()
 
     return ResumeSessionResponse(
         session_id=session.id,
@@ -341,6 +338,7 @@ async def submit_evaluation(
         existing_draft.score_label = body.score_label
         existing_draft.score_a = score_info["score_a"]
         existing_draft.score_b = score_info["score_b"]
+        existing_draft.comment = body.comment
         db.commit()
         db.refresh(existing_draft)
         return EvaluationSubmitResponse(
@@ -370,6 +368,7 @@ async def submit_evaluation(
         score_label=body.score_label,
         score_a=score_info["score_a"],
         score_b=score_info["score_b"],
+        comment=body.comment,
         is_repeat=is_repeat,
         status="draft",
     )
@@ -423,8 +422,6 @@ async def submit_round(
 
     session.status = "completed"
     session.completed_at = now
-
-    current_user.last_active_at = now
     db.commit()
 
     score_distribution = {"a_much": 0, "a_slight": 0, "same": 0, "b_slight": 0, "b_much": 0}
@@ -465,6 +462,7 @@ async def get_pair_detail(
     ).first()
 
     my_score = eval_record.score if eval_record else None
+    comment = eval_record.comment if eval_record else ""
 
     return PairDetailResponse(
         pair_id=pair.id,
@@ -472,6 +470,7 @@ async def get_pair_detail(
         image_a_url=_get_image_url(pair, "a"),
         image_b_url=_get_image_url(pair, "b"),
         my_score=my_score,
+        comment=comment or "",
     )
 
 
@@ -522,6 +521,7 @@ async def get_my_evaluations(
         EvaluationOut(
             id=e.id, pair_id=e.pair_id, score=e.score,
             score_label=e.score_label, score_a=e.score_a, score_b=e.score_b,
+            comment=e.comment or "",
             created_at=str(e.created_at) if e.created_at else None,
         )
         for e in evals
@@ -541,11 +541,12 @@ async def export_csv(
     output = io.StringIO()
     output.write("﻿")
     writer = csv.writer(output)
-    writer.writerow(["序号", "图像对ID", "评分", "评分说明", "A得分", "B得分", "提交时间"])
+    writer.writerow(["序号", "图像对ID", "评分", "评分说明", "评价理由", "A得分", "B得分", "提交时间"])
 
     for i, e in enumerate(evals, 1):
         writer.writerow([
             i, e.pair_id, e.score, e.score_label,
+            e.comment or "",
             e.score_a, e.score_b,
             str(e.submitted_at) if e.submitted_at else str(e.created_at),
         ])

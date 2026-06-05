@@ -34,6 +34,7 @@ export const useEvalStore = defineStore('eval', () => {
   const pairList = ref([])       // 当前 session 的图对列表（全量）
   const cursor = ref(0)          // 当前游标（0 ~ pairList.length-1）
   const scoreMap = ref({})       // { pairId: scoreKey }
+  const commentMap = ref({})     // { pairId: comment }
   const submitted = ref(false)    // 当前 session 是否已提交
 
   // ==================== 统计信息 ====================
@@ -173,14 +174,19 @@ export const useEvalStore = defineStore('eval', () => {
       pairList.value = data.pairs
       cursor.value = 0
       scoreMap.value = {}
+      commentMap.value = {}
       submitted.value = false
       roundStats.value = null
 
-      // 从 pairs 中提取已有评分（使用 pair_id + 索引作为 key）
+      // 从 pairs 中提取已有评分和理由（使用 pair_id + 索引作为 key）
       for (let i = 0; i < data.pairs.length; i++) {
         const pair = data.pairs[i]
+        const key = `${pair.pair_id}_${i}`
         if (pair.my_score) {
-          scoreMap.value[`${pair.pair_id}_${i}`] = pair.my_score
+          scoreMap.value[key] = pair.my_score
+        }
+        if (pair.comment) {
+          commentMap.value[key] = pair.comment
         }
       }
 
@@ -218,14 +224,19 @@ export const useEvalStore = defineStore('eval', () => {
       // 初始化状态
       pairList.value = data.pairs
       scoreMap.value = {}
+      commentMap.value = {}
       submitted.value = false
       roundStats.value = null
 
-      // 从 pairs 中提取已有评分（使用 pair_id + 索引作为 key）
+      // 从 pairs 中提取已有评分和理由（使用 pair_id + 索引作为 key）
       for (let i = 0; i < data.pairs.length; i++) {
         const pair = data.pairs[i]
+        const key = `${pair.pair_id}_${i}`
         if (pair.my_score) {
-          scoreMap.value[`${pair.pair_id}_${i}`] = pair.my_score
+          scoreMap.value[key] = pair.my_score
+        }
+        if (pair.comment) {
+          commentMap.value[key] = pair.comment
         }
       }
 
@@ -245,7 +256,7 @@ export const useEvalStore = defineStore('eval', () => {
     }
   }
 
-    /**
+  /**
    * 根据 cursor 位置计算 is_repeat
    * 统计当前 pair_id 在 cursor 位置之前出现的次数
    */
@@ -262,8 +273,9 @@ export const useEvalStore = defineStore('eval', () => {
    * 提交单个评分（草稿）
    * @param {string} score - 评分键值
    * @param {string} scoreLabel - 评分标签
+   * @param {string} comment - 评价理由
    */
-  async function submitScore(score, scoreLabel) {
+  async function submitScore(score, scoreLabel, comment = '') {
     if (!currentPair.value || !sessionInfo.value) return
 
     const pairId = currentPair.value.pair_id
@@ -276,7 +288,8 @@ export const useEvalStore = defineStore('eval', () => {
         session_id: sessionInfo.value.session_id,
         score: score,
         score_label: scoreLabel,
-        is_repeat: isRepeat
+        is_repeat: isRepeat,
+        comment: comment
       })
 
       // 立即更新本地状态（使用 pair_id + 索引作为 key，避免重复图对覆盖）
@@ -364,6 +377,7 @@ export const useEvalStore = defineStore('eval', () => {
     pairList.value = []
     cursor.value = 0
     scoreMap.value = {}
+    commentMap.value = {}
     submitted.value = false
     roundStats.value = null
     error.value = ''
@@ -397,6 +411,7 @@ export const useEvalStore = defineStore('eval', () => {
     pairList,
     cursor,
     scoreMap,
+    commentMap,
     submitted,
     roundStats,
     loading,

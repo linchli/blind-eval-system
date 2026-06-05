@@ -78,3 +78,4 @@ class SessionPairInfo(BaseModel):
     image_a_url: str
     image_b_url: str
     my_score: Optional[str] = None
+    comment: str = ""

@@ -10,6 +10,7 @@ ENV/
 venv.bak/
 .venv/
 uv.lock
+batch_import.py
 
 # Node.js
 node_modules/
@@ -62,3 +63,6 @@ test_images/*
 # Backup files
 *.bak
 *.backup
+
+# Doc
+docs/*

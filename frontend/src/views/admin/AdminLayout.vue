@@ -28,9 +28,17 @@
           <span class="nav-icon">🖼️</span>
           <span class="nav-label">图像管理</span>
         </div>
+        <div class="nav-item" :class="{ active: $route.name === 'BatchUpload' }" @click="$router.push('/admin/batch-upload')">
+          <span class="nav-icon">📤</span>
+          <span class="nav-label">批量上传</span>
+        </div>
         <div class="nav-item" :class="{ active: $route.name === 'PairManage' }" @click="$router.push('/admin/pairs')">
           <span class="nav-icon">🔗</span>
           <span class="nav-label">配对管理</span>
+        </div>
+        <div class="nav-item" :class="{ active: $route.name === 'UserManage' }" @click="$router.push('/admin/users')">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">用户管理</span>
         </div>
       </nav>
 
@@ -151,6 +159,12 @@ window.showAdminToast = showToastParent
   align-items: center;
 }
 .nav-label { font-size: 14px; font-weight: 500; color: #374151; }
+
+.nav-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 8px 16px;
+}
 
 .main-content {
   flex: 1;

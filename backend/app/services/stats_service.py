@@ -1,9 +1,7 @@
 """
 统计服务
 """
-import math
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from ..models.evaluation import Evaluation, EvalSession
 from ..models.image_pair import ImagePair

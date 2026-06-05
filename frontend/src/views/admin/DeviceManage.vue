@@ -166,15 +166,6 @@
               <label>固件版本</label>
               <input v-model="form.device_attrs.firmware_version" class="form-input" />
             </div>
-            <div class="form-group flex1">
-              <label>场景模式</label>
-              <select v-model="form.device_attrs.scene_mode" class="form-select">
-                <option value="">请选择</option>
-                <option value="通用模式">通用模式</option>
-                <option value="夜间模式">夜间模式</option>
-                <option value="宽动态模式">宽动态模式</option>
-              </select>
-            </div>
           </div>
 
           <div class="custom-params">
@@ -337,7 +328,6 @@ function importJson() {
       '壳体信息': 'housing_info',
       // 扩展参数
       '固件版本': 'firmware_version',
-      '场景模式': 'scene_mode',
     }
 
     for (const [key, value] of Object.entries(json)) {

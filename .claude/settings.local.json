@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
+      "Bash(python -c \"from app.schemas.cleaning import *; print\\('OK'\\)\")",
       "Bash(uv run *)",
+      "Bash(python -c \"from app.api.ranking import router; print\\('OK'\\)\")",
       "Bash(python *)"
     ]
   },

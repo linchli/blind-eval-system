@@ -1,7 +1,7 @@
 """
 评测相关 Pydantic 模型
 """
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import Optional
 
 
@@ -42,6 +42,7 @@ class EvaluationSubmitRequest(BaseModel):
     score: str
     score_label: str = ""
     is_repeat: int = 0
+    comment: str = ""
 
 
 class EvaluationSubmitResponse(BaseModel):
@@ -67,6 +68,7 @@ class PairDetailResponse(BaseModel):
     image_a_url: str
     image_b_url: str
     my_score: Optional[str] = None
+    comment: str = ""
 
 
 class EvaluationOut(BaseModel):
@@ -77,6 +79,7 @@ class EvaluationOut(BaseModel):
     score_label: str
     score_a: float
     score_b: float
+    comment: str = ""
     created_at: Optional[str] = None
 
 

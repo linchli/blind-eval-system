@@ -32,8 +32,8 @@
         </select>
       </div>
 
-      <button class="btn-primary btn-large" @click="showPreviewDialog = true" :disabled="!selectedSceneId || previewLoading">
-        {{ previewLoading ? '计算中...' : '🚀 生成配对' }}
+      <button class="btn-primary btn-large" @click="openPreviewDialog" :disabled="!selectedSceneId || previewLoading">
+        {{ previewLoading ? '计算中...' : '生成配对' }}
       </button>
     </div>
 
@@ -155,6 +155,11 @@ async function fetchScenes() {
   }
 }
 
+function openPreviewDialog() {
+  showPreviewDialog.value = true
+  fetchPreview()
+}
+
 async function fetchPairs() {
   try {
     const data = await fetch(`/api/admin/pairs?scene_id=${selectedSceneId.value}`, {
@@ -171,11 +176,12 @@ async function fetchSceneStats() {
   if (!selectedSceneId.value) {
     sceneStats.value = null
     pairs.value = []
+    previewData.value = null
     return
   }
 
   try {
-    const [stats, pairList, devicesList] = await Promise.all([
+    const [stats, pairList, devicesList, preview] = await Promise.all([
       fetch(`/api/admin/pairs/scene-stats/${selectedSceneId.value}`, {
         headers: { 'Authorization': `Bearer ${authStore.token}` }
       }).then(r => r.json()),
@@ -185,9 +191,21 @@ async function fetchSceneStats() {
       fetch('/api/admin/devices', {
         headers: { 'Authorization': `Bearer ${authStore.token}` }
       }).then(r => r.json()),
+      fetch('/api/admin/pairs/preview', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scene_id: Number(selectedSceneId.value),
+          strategy: 'full',
+        }),
+      }).then(r => r.json()),
     ])
     sceneStats.value = stats
     pairs.value = pairList
+    if (!preview.error) previewData.value = preview
 
     // 获取该场景的设备列表（用于基准配对）
     const sceneImages = await fetch(`/api/admin/images?scene_id=${selectedSceneId.value}`, {

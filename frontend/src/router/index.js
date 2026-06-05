@@ -9,11 +9,13 @@ import SceneManage from '../views/admin/SceneManage.vue'
 import DeviceManage from '../views/admin/DeviceManage.vue'
 import ImageManage from '../views/admin/ImageManage.vue'
 import PairManage from '../views/admin/PairManage.vue'
+import UserManage from '../views/admin/UserManage.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', name: 'Login', component: LoginView },
   { path: '/register', name: 'Register', component: RegisterView },
+  { path: '/reset-password', name: 'ResetPassword', component: () => import('../views/auth/ResetPasswordView.vue') },
   { path: '/eval', name: 'Eval', component: EvalView },
   { path: '/result', name: 'Result', component: ResultView },
   {
@@ -26,6 +28,8 @@ const routes = [
       { path: 'devices', name: 'DeviceManage', component: DeviceManage },
       { path: 'images', name: 'ImageManage', component: ImageManage },
       { path: 'pairs', name: 'PairManage', component: PairManage },
+      { path: 'users', name: 'UserManage', component: UserManage },
+      { path: 'batch-upload', name: 'BatchUpload', component: () => import('../views/admin/BatchUpload.vue') },
     ],
   },
 ]
@@ -37,7 +41,9 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('blind_eval_token')
-  if (!['Login', 'Register'].includes(to.name) && !token) {
+  // 不需要登录的页面
+  const publicPages = ['Login', 'Register', 'ResetPassword']
+  if (!publicPages.includes(to.name) && !token) {
     next({ name: 'Login' })
   } else {
     next()

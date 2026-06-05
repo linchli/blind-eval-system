@@ -5,7 +5,9 @@ const API_BASE = ''
 
 async function request(url, options = {}) {
   const token = localStorage.getItem('blind_eval_token')
-  const headers = { 'Content-Type': 'application/json', ...options.headers }
+  // FormData 不设置 Content-Type，让浏览器自动设置 multipart boundary
+  const isFormData = options.body instanceof FormData
+  const headers = isFormData ? { ...options.headers } : { 'Content-Type': 'application/json', ...options.headers }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   const resp = await fetch(`${API_BASE}${url}`, { ...options, headers })
@@ -14,7 +16,7 @@ async function request(url, options = {}) {
     localStorage.removeItem('blind_eval_token')
     localStorage.removeItem('blind_eval_user')
     window.location.hash = '#/login'
-    throw new Error('认证已过期')
+    throw new Error('用户名或密码错误')
   }
   if (!resp.ok) {
     const d = await resp.json().catch(() => ({}))
@@ -31,10 +33,23 @@ export const apiGetMe = () => request('/api/auth/me')
 
 // ==================== 管理后台 ====================
 
+// 大类
+export const apiGetCategories = () => request('/api/admin/categories')
+export const apiCreateCategory = (data) => request('/api/admin/categories', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateCategory = (id, data) => request(`/api/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteCategory = (id) => request(`/api/admin/categories/${id}`, { method: 'DELETE' })
+
+// 子类
+export const apiGetSubcategories = () => request('/api/admin/subcategories')
+export const apiCreateSubcategory = (data) => request('/api/admin/subcategories', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateSubcategory = (id, data) => request(`/api/admin/subcategories/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteSubcategory = (id) => request(`/api/admin/subcategories/${id}`, { method: 'DELETE' })
+
 // 场景
 export const apiGetScenes = () => request('/api/admin/scenes')
 export const apiCreateScene = (data) => request('/api/admin/scenes', { method: 'POST', body: JSON.stringify(data) })
 export const apiUpdateScene = (id, data) => request(`/api/admin/scenes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteScene = (id) => request(`/api/admin/scenes/${id}`, { method: 'DELETE' })
 
 // 设备
 export const apiGetDevices = () => request('/api/admin/devices')
@@ -52,6 +67,16 @@ export const apiUploadImage = (formData) => request('/api/admin/images', {
   headers: {}, // 让浏览器自动设置 Content-Type
 })
 export const apiDeleteImage = (id) => request(`/api/admin/images/${id}`, { method: 'DELETE' })
+export const apiUpdateImage = (imageId, formData) => request(`/api/admin/images/${imageId}`, {
+  method: 'PUT',
+  body: formData,
+  headers: {},
+})
+export const apiReplaceImage = (imageId, formData) => request(`/api/admin/images/${imageId}/replace`, {
+  method: 'POST',
+  body: formData,
+  headers: {},
+})
 
 // 配对
 export const apiGetPairs = (params = {}) => {
@@ -64,6 +89,14 @@ export const apiGetSceneStats = (sceneId) => request(`/api/admin/pairs/scene-sta
 
 // 概览
 export const apiGetOverview = () => request('/api/admin/overview')
+
+// 用户管理
+export const apiGetUsers = () => request('/api/admin/users')
+export const apiTriggerResetPassword = (userId) => request(`/api/admin/users/${userId}/reset-password`, { method: 'PUT' })
+
+// 密码重置（无需认证）
+export const apiVerifyResetToken = (token) => request(`/api/auth/verify-reset-token?token=${token}`)
+export const apiResetPassword = (data) => request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(data) })
 
 // ==================== 评测核心 API ====================
 
@@ -81,3 +114,47 @@ export const apiGetPairDetail = (pairId) => request(`/api/eval/pair/${pairId}`)
 export const apiGetProgress = (sceneId) => request(`/api/eval/progress${sceneId ? '?scene_id=' + sceneId : ''}`)
 export const apiGetMyEvals = () => request('/api/eval/my')
 export const apiExportCSV = () => request('/api/eval/export/csv')
+
+// ==================== 统计 ====================
+export const apiStatsOverview = () => request('/api/stats/overview')
+
+// ==================== 批量上传 ====================
+
+export const apiBatchUpload = (formData, onProgress) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const token = localStorage.getItem('blind_eval_token')
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    })
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 401) {
+        localStorage.removeItem('blind_eval_token')
+        localStorage.removeItem('blind_eval_user')
+        window.location.hash = '#/login'
+        reject(new Error('用户名或密码错误'))
+        return
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText))
+      } else {
+        try {
+          const d = JSON.parse(xhr.responseText)
+          reject(new Error(d.detail || `请求失败 (${xhr.status})`))
+        } catch {
+          reject(new Error(`请求失败 (${xhr.status})`))
+        }
+      }
+    })
+
+    xhr.addEventListener('error', () => reject(new Error('网络错误')))
+
+    xhr.open('POST', '/api/admin/batch-upload/')
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.send(formData)
+  })
+}

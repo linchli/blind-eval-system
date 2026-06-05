@@ -30,3 +30,20 @@ class UserOut(BaseModel):
     role: str
     display_name: str
     created_at: Optional[str] = None
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
+    display_name: str
+    created_at: Optional[str] = None
+    last_active_at: Optional[str] = None
+    has_active_reset: bool = False
+    evaluation_count: int = 0
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

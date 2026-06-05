@@ -33,3 +33,21 @@ async def require_admin(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="需要管理员权限")
     return current_user
+
+
+async def get_optional_user(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """可选认证：有 token 则返回用户，否则返回 None"""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization[7:]
+    try:
+        payload = decode_token(token)
+        user_id = int(payload.get("sub", 0))
+        if not user_id:
+            return None
+        return db.query(User).filter(User.id == user_id).first()
+    except Exception:
+        return None

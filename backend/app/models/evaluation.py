@@ -34,6 +34,7 @@ class Evaluation(Base):
     score_label = Column(String(20), nullable=False)
     score_a = Column(Float, nullable=False)
     score_b = Column(Float, nullable=False)
+    comment = Column(String(500), default="", comment="评价理由")
     is_repeat = Column(SmallInteger, default=0, nullable=False, comment="是否为重复图对的第2次评测 0=首次 1=重复")
     status = Column(Enum("draft", "submitted"), default="draft", nullable=False)
     created_at = Column(DateTime, server_default=func.now())

@@ -27,6 +27,7 @@
         <div class="image-preview">
           <img v-if="img.thumb_path" :src="img.thumb_path" :alt="img.device_name" />
           <img v-else :src="img.image_path" :alt="img.device_name" />
+          <button class="card-edit-btn" @click.stop="openEditModal(img)" title="编辑">✎</button>
         </div>
         <div class="image-info">
           <div class="scene-tag">{{ img.scene_name }}</div>
@@ -282,14 +283,342 @@
         </div>
       </div>
     </div>
+
+    <!-- 编辑模态框 -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>编辑图像</h2>
+          <button class="btn-icon" @click="closeEditModal">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="edit-image-info">
+            <div class="edit-preview">
+              <img v-if="editingImage.thumb_path" :src="editingImage.thumb_path" :alt="editingImage.device_name" />
+              <img v-else :src="editingImage.image_path" :alt="editingImage.device_name" />
+            </div>
+            <div class="edit-meta">
+              <div><strong>场景：</strong>{{ editingImage.scene_name }}</div>
+              <div><strong>设备：</strong>{{ editingImage.device_name }}</div>
+              <div><strong>文件：</strong>{{ editingImage.image_path ? editingImage.image_path.split('/').pop() : '-' }}</div>
+              <div class="replace-section">
+                <label>更换图像（文件名需与原文件一致）：</label>
+                <input ref="editFileInput" type="file" accept="image/jpeg,image/png" @change="handleEditFileSelect" style="display:none" />
+                <button class="btn-secondary btn-sm" @click="$refs.editFileInput.click()">选择新文件</button>
+                <span v-if="editSelectedFile" class="selected-file">✓ {{ editSelectedFile.name }}</span>
+                <div v-if="fileError" class="file-error">{{ fileError }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab-btn" :class="{ active: editTab === 0 }" @click="editTab = 0">① 基础信息</button>
+            <button class="tab-btn" :class="{ active: editTab === 1 }" @click="editTab = 1">② 场景环境</button>
+            <button class="tab-btn" :class="{ active: editTab === 2 }" @click="editTab = 2">③ 设备参数</button>
+            <button class="tab-btn" :class="{ active: editTab === 3 }" @click="editTab = 3">④ ISP参数</button>
+          </div>
+
+          <div v-show="editTab === 0" class="tab-content">
+            <h4 class="section-title">── ① 基础信息 (note_attrs) ───</h4>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>采集时间</label>
+                <input v-model="editForm.note_attrs.capture_time" type="datetime-local" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>采集环境</label>
+                <select v-model="editForm.note_attrs.capture_env" class="form-select">
+                  <option value="室外">室外</option>
+                  <option value="室内">室内</option>
+                  <option value="实验室">实验室</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>采集人员</label>
+                <input v-model="editForm.note_attrs.capture_person" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>设备编号</label>
+                <input v-model="editForm.note_attrs.device_code" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>采集地点</label>
+                <input v-model="editForm.note_attrs.capture_location" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>采集目的</label>
+                <select v-model="editForm.note_attrs.capture_purpose" class="form-select">
+                  <option value="盲评">盲评</option>
+                  <option value="测试">测试</option>
+                  <option value="研发">研发</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>特殊说明</label>
+              <textarea v-model="editForm.note_attrs.special_note" class="form-textarea" rows="2"></textarea>
+            </div>
+          </div>
+
+          <div v-show="editTab === 1" class="tab-content">
+            <h4 class="section-title">── ② 场景环境 (env_attrs) ───</h4>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>点位类型</label>
+                <input v-model="editForm.env_attrs.point_type" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>天气</label>
+                <input v-model="editForm.env_attrs.weather" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>季节</label>
+                <input v-model="editForm.env_attrs.season" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>时段</label>
+                <input v-model="editForm.env_attrs.time_period" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>环境色温</label>
+                <input v-model="editForm.env_attrs.env_color_temp" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>环境照度</label>
+                <input v-model="editForm.env_attrs.env_illuminance" class="form-input" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>关系描述</label>
+              <textarea v-model="editForm.env_attrs.relation_desc" class="form-textarea" rows="2"></textarea>
+            </div>
+          </div>
+
+          <div v-show="editTab === 2" class="tab-content">
+            <h4 class="section-title">── ③ 设备参数 (shot_attrs) ───</h4>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>设备名</label>
+                <input v-model="editForm.shot_attrs.device_name" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>主控型号</label>
+                <input v-model="editForm.shot_attrs.main_chip" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>镜头型号</label>
+                <input v-model="editForm.shot_attrs.lens_model" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>Sensor型号</label>
+                <input v-model="editForm.shot_attrs.sensor_model" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>焦距</label>
+                <input v-model="editForm.shot_attrs.focal_length" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>分辨率</label>
+                <input v-model="editForm.shot_attrs.resolution" class="form-input" />
+              </div>
+            </div>
+          </div>
+
+          <div v-show="editTab === 3" class="tab-content">
+            <h4 class="section-title">── ④ ISP参数 (isp_attrs) ───</h4>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>Sensor Analog Gain</label>
+                <input v-model="editForm.isp_attrs.sensor_analog_gain" type="number" step="0.1" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>Sensor Digital Gain</label>
+                <input v-model="editForm.isp_attrs.sensor_digital_gain" type="number" step="0.1" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>Total Gain</label>
+                <input v-model="editForm.isp_attrs.total_gain" type="number" step="0.1" class="form-input" />
+              </div>
+              <div class="form-group flex1">
+                <label>曝光时间</label>
+                <input v-model="editForm.isp_attrs.exposure_time" type="number" step="0.001" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex1">
+                <label>白平衡 RGain</label>
+                <input v-model="editForm.isp_attrs.wb_r_gain" type="number" step="0.01" class="form-input" />
+              </div>
+            </div>
+          </div>
+
+          <div v-if="editError" class="error-message">{{ editError }}</div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-danger" @click="confirmDeleteImage">🗑 删除图像</button>
+          <div class="footer-right">
+            <button class="btn-cancel" @click="closeEditModal">取消</button>
+            <button class="btn-primary" @click="submitEdit" :disabled="editSaving">
+              {{ editSaving ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 删除确认对话框 -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
+      <div class="modal-content narrow">
+        <div class="modal-header">
+          <h2>确认删除</h2>
+          <button class="btn-icon" @click="showDeleteConfirm = false">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>确定要删除这张图像吗？此操作不可恢复。</p>
+          <p class="delete-warning">图像文件和缩略图将一并被删除。</p>
+          <div v-if="deleteError" class="error-message">{{ deleteError }}</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showDeleteConfirm = false">取消</button>
+          <button class="btn-danger" @click="deleteImage" :disabled="deleting">
+            {{ deleting ? '删除中...' : '确认删除' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/auth.js'
+import { apiUpdateImage, apiReplaceImage, apiDeleteImage } from '@/api'
 
 const authStore = useAuthStore()
+
+// ==================== 元信息字段统一配置 ====================
+// cnKey: 中文 key（JSON 导入 / 数据库存储）
+// enKey: 英文 key（表单 v-model 绑定）
+// default: 默认值
+const METADATA_FIELDS = {
+  note_attrs: [
+    { cnKey: '采集时间', enKey: 'capture_time', default: '' },
+    { cnKey: '采集环境', enKey: 'capture_env', default: '室外' },
+    { cnKey: '采集人员', enKey: 'capture_person', default: '' },
+    { cnKey: '设备编号', enKey: 'device_code', default: '' },
+    { cnKey: '采集地点', enKey: 'capture_location', default: '' },
+    { cnKey: '采集目的', enKey: 'capture_purpose', default: '盲评' },
+    { cnKey: '特殊说明', enKey: 'special_note', default: '' },
+  ],
+  env_attrs: [
+    { cnKey: '点位类型', enKey: 'point_type', default: '' },
+    { cnKey: '天气', enKey: 'weather', default: '' },
+    { cnKey: '季节', enKey: 'season', default: '' },
+    { cnKey: '时段', enKey: 'time_period', default: '' },
+    { cnKey: '照明模式', enKey: 'lighting_mode', default: '' },
+    { cnKey: '光照类型', enKey: 'light_type', default: '' },
+    { cnKey: '目标类型', enKey: 'target_type', default: '' },
+    { cnKey: '环境色温', enKey: 'env_color_temp', default: '' },
+    { cnKey: '样机计算色温', enKey: 'calc_color_temp', default: '' },
+    { cnKey: '环境照度', enKey: 'env_illuminance', default: '' },
+    { cnKey: '运动状态', enKey: 'motion_state', default: '' },
+    { cnKey: '关系描述', enKey: 'relation_desc', default: '' },
+  ],
+  shot_attrs: [
+    { cnKey: '设备名', enKey: 'device_name', default: '' },
+    { cnKey: '主控型号', enKey: 'main_chip', default: '' },
+    { cnKey: '镜头型号', enKey: 'lens_model', default: '' },
+    { cnKey: 'Sensor型号', enKey: 'sensor_model', default: '' },
+    { cnKey: '焦距', enKey: 'focal_length', default: '' },
+    { cnKey: '光圈', enKey: 'aperture', default: '' },
+    { cnKey: '分辨率', enKey: 'resolution', default: '' },
+    { cnKey: '白光灯珠料号', enKey: 'white_led', default: '' },
+    { cnKey: '红外灯珠料号', enKey: 'ir_led', default: '' },
+    { cnKey: '采集帧率', enKey: 'frame_rate', default: '' },
+    { cnKey: '固件版本', enKey: 'firmware_version', default: '' },
+    { cnKey: '壳体信息', enKey: 'housing_info', default: '' },
+    { cnKey: '场景模式', enKey: 'scene_mode', default: '' },
+  ],
+  isp_attrs: [
+    { cnKey: 'Sensor Analog Gain', enKey: 'sensor_analog_gain', default: '' },
+    { cnKey: 'Sensor Digital Gain', enKey: 'sensor_digital_gain', default: '' },
+    { cnKey: 'Total Gain', enKey: 'total_gain', default: '' },
+    { cnKey: '曝光时间', enKey: 'exposure_time', default: '' },
+    { cnKey: '白平衡 RGain', enKey: 'wb_r_gain', default: '' },
+  ],
+}
+
+// JSON 中文组名 → attrs group 名
+const JSON_GROUP_MAP = {
+  '基础采集信息': 'note_attrs',
+  '场景信息': 'env_attrs',
+  '图像视频参数': 'shot_attrs',
+  '图像/视频参数': 'shot_attrs',
+  'ISP参数': 'isp_attrs',
+}
+
+// 从 METADATA_FIELDS 生成默认值
+function getDefaults() {
+  const result = {}
+  for (const [group, fields] of Object.entries(METADATA_FIELDS)) {
+    result[group] = {}
+    for (const f of fields) {
+      result[group][f.enKey] = f.default
+    }
+  }
+  return result
+}
+
+// 从 METADATA_FIELDS 生成中文→英文映射
+function getCnToEnMap(group) {
+  const map = {}
+  for (const f of METADATA_FIELDS[group]) {
+    map[f.cnKey] = f.enKey
+  }
+  return map
+}
+
+// 数据库 key 归一化：中文 key → 英文 key
+function normalizeAttrs(attrs, group) {
+  if (!attrs) return {}
+  const map = getCnToEnMap(group)
+  const result = {}
+  for (const [k, v] of Object.entries(attrs)) {
+    result[map[k] || k] = v
+  }
+  return result
+}
+
+// 采集时间格式转换：数据库 "2026/05/12/21/30/00" ↔ datetime-local "2026-05-12T21:30"
+function toDatetimeLocal(val) {
+  if (!val || typeof val !== 'string') return ''
+  // "2026/05/12/21/30/00" → "2026-05-12T21:30"
+  const m = val.match(/^(\d{4})\/(\d{2})\/(\d{2})\/(\d{2})\/(\d{2})/)
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}` : val
+}
+
+function fromDatetimeLocal(val) {
+  if (!val) return ''
+  // "2026-05-12T21:30" → "2026/05/12/21/30/00"
+  const m = val.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  return m ? `${m[1]}/${m[2]}/${m[3]}/${m[4]}/${m[5]}/00` : val
+}
 
 const images = ref([])
 const scenes = ref([])
@@ -304,6 +633,23 @@ const jsonError = ref('')
 const isDragOver = ref(false)
 const selectedFile = ref(null)
 
+// 编辑状态
+const showEditModal = ref(false)
+const editingImage = ref({})
+const editTab = ref(0)
+const editSaving = ref(false)
+const editError = ref('')
+const fileError = ref('')
+const editSelectedFile = ref(null)
+const editForm = ref({
+  shot_attrs: {}, env_attrs: {}, isp_attrs: {}, note_attrs: {},
+})
+
+// 删除状态
+const showDeleteConfirm = ref(false)
+const deleteError = ref('')
+const deleting = ref(false)
+
 const filters = ref({
   scene_id: '',
   device_id: '',
@@ -312,24 +658,7 @@ const filters = ref({
 const form = ref({
   scene_id: '',
   device_id: '',
-  shot_attrs: {
-    device_name: '', main_chip: '', lens_model: '',
-    sensor_model: '', focal_length: '', resolution: '',
-  },
-  env_attrs: {
-    point_type: '', weather: '', season: '',
-    time_period: '', env_color_temp: '', env_illuminance: '',
-    relation_desc: '',
-  },
-  isp_attrs: {
-    sensor_analog_gain: '', sensor_digital_gain: '',
-    total_gain: '', exposure_time: '', wb_r_gain: '',
-  },
-  note_attrs: {
-    capture_time: '', capture_env: '室外',
-    capture_person: '', device_code: '',
-    capture_location: '', capture_purpose: '盲评', special_note: '',
-  },
+  ...getDefaults(),
 })
 
 const filteredImages = computed(() => {
@@ -383,81 +712,13 @@ function importJsonData() {
   try {
     const json = JSON.parse(jsonInput.value)
 
-    // 基础采集信息 → note_attrs
-    if (json['基础采集信息']) {
-      const mapping = {
-        '采集时间': 'capture_time',
-        '采集人员': 'capture_person',
-        '采集地点': 'capture_location',
-        '采集环境': 'capture_env',
-        '设备编号': 'device_code',
-        '采集目的': 'capture_purpose',
-        '特殊说明': 'special_note'
-      }
-      for (const [key, value] of Object.entries(json['基础采集信息'])) {
-        const mappedKey = mapping[key] || key
-        form.value.note_attrs[mappedKey] = value
-      }
-    }
-
-    // 场景信息 → env_attrs
-    if (json['场景信息']) {
-      const mapping = {
-        '点位类型': 'point_type',
-        '天气': 'weather',
-        '季节': 'season',
-        '时段': 'time_period',
-        '照明模式': 'lighting_mode',
-        '光照类型': 'light_type',
-        '目标类型': 'target_type',
-        '环境色温': 'env_color_temp',
-        '样机计算色温': 'calc_color_temp',
-        '环境照度': 'env_illuminance',
-        '运动状态': 'motion_state',
-        '关系描述': 'relation_desc'
-      }
-      for (const [key, value] of Object.entries(json['场景信息'])) {
-        const mappedKey = mapping[key] || key
-        form.value.env_attrs[mappedKey] = value
-      }
-    }
-
-    // 图像视频参数 → shot_attrs
-    if (json['图像视频参数'] || json['图像/视频参数']) {
-      const data = json['图像视频参数'] || json['图像/视频参数']
-      const mapping = {
-        '设备名': 'device_name',
-        '主控型号': 'main_chip',
-        '镜头型号': 'lens_model',
-        '焦距': 'focal_length',
-        '光圈': 'aperture',
-        'Sensor型号': 'sensor_model',
-        '白光灯珠料号': 'white_led',
-        '红外灯珠料号': 'ir_led',
-        '分辨率': 'resolution',
-        '采集帧率': 'frame_rate',
-        '固件版本': 'firmware_version',
-        '壳体信息': 'housing_info',
-        '场景模式': 'scene_mode'
-      }
-      for (const [key, value] of Object.entries(data)) {
-        const mappedKey = mapping[key] || key
-        form.value.shot_attrs[mappedKey] = value
-      }
-    }
-
-    // ISP参数 → isp_attrs
-    if (json['ISP参数']) {
-      const mapping = {
-        'Sensor Analog Gain': 'sensor_analog_gain',
-        'Sensor Digital Gain': 'sensor_digital_gain',
-        'Total Gain': 'total_gain',
-        '曝光时间': 'exposure_time',
-        '白平衡 RGain': 'wb_r_gain'
-      }
-      for (const [key, value] of Object.entries(json['ISP参数'])) {
-        const mappedKey = mapping[key] || key
-        form.value.isp_attrs[mappedKey] = value
+    for (const [cnGroupName, jsonGroupName] of Object.entries(JSON_GROUP_MAP)) {
+      const groupData = json[cnGroupName]
+      if (!groupData) continue
+      const cnToEn = getCnToEnMap(jsonGroupName)
+      for (const [key, value] of Object.entries(groupData)) {
+        const enKey = cnToEn[key] || key
+        form.value[jsonGroupName][enKey] = value
       }
     }
 
@@ -478,13 +739,7 @@ function closeModal() {
 }
 
 function resetForm() {
-  form.value = {
-    scene_id: '', device_id: '',
-    shot_attrs: { device_name: '', main_chip: '', lens_model: '', sensor_model: '', focal_length: '', resolution: '' },
-    env_attrs: { point_type: '', weather: '', season: '', time_period: '', env_color_temp: '', env_illuminance: '', relation_desc: '' },
-    isp_attrs: { sensor_analog_gain: '', sensor_digital_gain: '', total_gain: '', exposure_time: '', wb_r_gain: '' },
-    note_attrs: { capture_time: '', capture_env: '室外', capture_person: '', device_code: '', capture_location: '', capture_purpose: '盲评', special_note: '' },
-  }
+  form.value = { scene_id: '', device_id: '', ...getDefaults() }
   selectedFile.value = null
   errorMessage.value = ''
   jsonInput.value = ''
@@ -505,13 +760,16 @@ async function submitImage() {
   errorMessage.value = ''
 
   try {
+    const noteAttrs = { ...form.value.note_attrs }
+    noteAttrs.capture_time = fromDatetimeLocal(noteAttrs.capture_time)
+
     const formData = new FormData()
     formData.append('scene_id', form.value.scene_id)
     formData.append('device_id', form.value.device_id)
     formData.append('shot_attrs', JSON.stringify(form.value.shot_attrs))
     formData.append('env_attrs', JSON.stringify(form.value.env_attrs))
     formData.append('isp_attrs', JSON.stringify(form.value.isp_attrs))
-    formData.append('note_attrs', JSON.stringify(form.value.note_attrs))
+    formData.append('note_attrs', JSON.stringify(noteAttrs))
     formData.append('image_file', selectedFile.value)
 
     const res = await fetch('/api/admin/images', {
@@ -532,6 +790,112 @@ async function submitImage() {
     errorMessage.value = e.message || '上传失败'
   } finally {
     saving.value = false
+  }
+}
+
+function openEditModal(img) {
+  editingImage.value = { ...img }
+  const defaults = getDefaults()
+  editForm.value = {
+    shot_attrs: { ...defaults.shot_attrs, ...normalizeAttrs(img.shot_attrs, 'shot_attrs') },
+    env_attrs: { ...defaults.env_attrs, ...normalizeAttrs(img.env_attrs, 'env_attrs') },
+    isp_attrs: { ...defaults.isp_attrs, ...normalizeAttrs(img.isp_attrs, 'isp_attrs') },
+    note_attrs: { ...defaults.note_attrs, ...normalizeAttrs(img.note_attrs, 'note_attrs') },
+  }
+  // 采集时间格式转换
+  editForm.value.note_attrs.capture_time = toDatetimeLocal(editForm.value.note_attrs.capture_time)
+  editSelectedFile.value = null
+  editError.value = ''
+  fileError.value = ''
+  editTab.value = 0
+  showEditModal.value = true
+}
+
+function closeEditModal() {
+  showEditModal.value = false
+  editingImage.value = {}
+  editSelectedFile.value = null
+  editError.value = ''
+  fileError.value = ''
+}
+
+function handleEditFileSelect(e) {
+  const file = e.target.files[0]
+  if (file) {
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg']
+    if (!validTypes.includes(file.type)) {
+      fileError.value = '仅支持 jpg/png 格式'
+      return
+    }
+    // 校验文件名必须与原文件一致
+    const oldFilename = editingImage.value.image_path.split('/').pop()
+    if (file.name !== oldFilename) {
+      fileError.value = `文件名不匹配：原文件为 "${oldFilename}"，请上传同名文件`
+      editSelectedFile.value = null
+      return
+    }
+    editSelectedFile.value = file
+    fileError.value = ''
+  }
+}
+
+async function submitEdit() {
+  editSaving.value = true
+  editError.value = ''
+
+  try {
+    // 采集时间格式转换
+    const noteAttrs = { ...editForm.value.note_attrs }
+    noteAttrs.capture_time = fromDatetimeLocal(noteAttrs.capture_time)
+
+    if (editSelectedFile.value) {
+      // 替换文件
+      const formData = new FormData()
+      formData.append('image_file', editSelectedFile.value)
+      formData.append('shot_attrs', JSON.stringify(editForm.value.shot_attrs))
+      formData.append('env_attrs', JSON.stringify(editForm.value.env_attrs))
+      formData.append('isp_attrs', JSON.stringify(editForm.value.isp_attrs))
+      formData.append('note_attrs', JSON.stringify(noteAttrs))
+      await apiReplaceImage(editingImage.value.id, formData)
+    } else {
+      // 仅更新元信息
+      const formData = new FormData()
+      formData.append('shot_attrs', JSON.stringify(editForm.value.shot_attrs))
+      formData.append('env_attrs', JSON.stringify(editForm.value.env_attrs))
+      formData.append('isp_attrs', JSON.stringify(editForm.value.isp_attrs))
+      formData.append('note_attrs', JSON.stringify(noteAttrs))
+      await apiUpdateImage(editingImage.value.id, formData)
+    }
+
+    if (window.showAdminToast) window.showAdminToast('保存成功', 'success')
+    closeEditModal()
+    await fetchData()
+  } catch (e) {
+    editError.value = e.message || '保存失败'
+  } finally {
+    editSaving.value = false
+  }
+}
+
+function confirmDeleteImage() {
+  deleteError.value = ''
+  showDeleteConfirm.value = true
+}
+
+async function deleteImage() {
+  deleting.value = true
+  deleteError.value = ''
+
+  try {
+    await apiDeleteImage(editingImage.value.id)
+    if (window.showAdminToast) window.showAdminToast('图像已删除', 'success')
+    showDeleteConfirm.value = false
+    closeEditModal()
+    await fetchData()
+  } catch (e) {
+    deleteError.value = e.message || '删除失败'
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -634,6 +998,36 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.card-edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.image-card:hover .card-edit-btn {
+  opacity: 1;
+}
+
+.card-edit-btn:hover {
+  background: #3b82f6;
+  color: #fff;
 }
 
 .image-preview img {
@@ -830,6 +1224,101 @@ onMounted(() => {
   color: #dc2626;
   font-size: 13px;
   margin-top: 12px;
+}
+
+/* 编辑模态框 */
+.edit-image-info {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.edit-preview {
+  width: 160px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #e2e8f0;
+}
+
+.edit-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.edit-meta {
+  flex: 1;
+  font-size: 13px;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.replace-section {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.replace-section label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.btn-danger {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: #fef2f2;
+  color: #dc2626;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.footer-right {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.delete-warning {
+  color: #92400e;
+  font-size: 13px;
+  background: #fef3c7;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.file-error {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 6px;
+  width: 100%;
 }
 
 .modal-footer {

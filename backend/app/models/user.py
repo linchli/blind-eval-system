@@ -19,6 +19,8 @@ class User(Base):
     display_name = Column(String(100), default="")
     created_at = Column(DateTime, server_default=func.now())
     last_active_at = Column(DateTime, nullable=True)
+    reset_token = Column(String(100), nullable=True, index=True)
+    reset_token_expires = Column(DateTime, nullable=True)
 
     evaluations = relationship("Evaluation", back_populates="user")
     sessions = relationship("EvalSession", back_populates="user")

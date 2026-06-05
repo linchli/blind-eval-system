@@ -1,29 +1,31 @@
 """
-场景相关 Pydantic 模型
+场景 Pydantic 模型
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
 class SceneCreate(BaseModel):
-    category: str
-    subcategory: str
+    category_id: int
+    subcategory_id: int
     sort_order: int = 100
-    folder_name: str | None = None
 
 
 class SceneUpdate(BaseModel):
-    category: Optional[str] = None
-    subcategory: Optional[str] = None
     sort_order: Optional[int] = None
 
 
 class SceneOut(BaseModel):
     id: int
-    category: str
-    subcategory: str
-    name: str
-    folder_name: str
+    category_id: int
+    category_name: str = ""
+    location: str = ""
+    subcategory_id: int
+    subcategory_name: str = ""
+    name: str = ""
+    folder_name: str = ""
     sort_order: int
     image_count: int = 0
     pair_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
