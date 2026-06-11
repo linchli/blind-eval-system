@@ -17,7 +17,7 @@
           <span class="col-status">状态</span>
           <span class="col-actions">操作</span>
         </div>
-        <div v-for="user in users" :key="user.id" class="user-item">
+        <div v-for="user in paginatedUsers" :key="user.id" class="user-item">
           <span class="col-id">{{ user.id }}</span>
           <span class="col-username">{{ user.username }}</span>
           <span class="col-email">{{ user.email }}</span>
@@ -35,6 +35,25 @@
           <span class="col-actions">
             <button class="btn-action" @click="handleResetPassword(user)">重置密码</button>
           </span>
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div v-if="users.length > 0" class="pagination">
+        <div class="page-size">
+          <label>每页</label>
+          <select v-model.number="pageSize" @change="currentPage = 1">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+          <label>条</label>
+        </div>
+        <span class="page-info">共 {{ users.length }} 条，{{ currentPage }}/{{ totalPages }} 页</span>
+        <div class="page-btns">
+          <button :disabled="currentPage <= 1" @click="currentPage--">上一页</button>
+          <button :disabled="currentPage >= totalPages" @click="currentPage++">下一页</button>
         </div>
       </div>
     </div>
@@ -84,7 +103,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/auth.js'
 import { apiGetUsers, apiTriggerResetPassword } from '../../api/index.js'
 
@@ -98,6 +117,15 @@ const selectedUser = ref(null)
 const resetLink = ref('')
 const expiresIn = ref('')
 const linkInput = ref(null)
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(10)
+const totalPages = computed(() => Math.max(1, Math.ceil(users.value.length / pageSize.value)))
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return users.value.slice(start, start + pageSize.value)
+})
 
 const roleLabels = {
   admin: '管理员',
@@ -168,6 +196,7 @@ onMounted(loadUsers)
 <style scoped>
 .user-manage {
   max-width: 1000px;
+  margin: 0 auto;
 }
 
 .page-header {
@@ -405,6 +434,55 @@ onMounted(loadUsers)
 }
 
 .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 分页控件 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748b;
+}
+.page-size select {
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+}
+.page-info {
+  font-size: 13px;
+  color: #64748b;
+}
+.page-btns {
+  display: flex;
+  gap: 8px;
+}
+.page-btns button {
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #475569;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.page-btns button:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.page-btns button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

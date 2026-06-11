@@ -5,56 +5,88 @@
       <button class="btn-primary" @click="showCreateDrawer = true">+ 新增设备</button>
     </div>
 
-    <div class="filter-bar">
-      <div class="filter-item">
-        <label>主控型号：</label>
-        <select v-model="filters.main_chip" @change="fetchDevices" class="form-select">
-          <option value="">全部</option>
-          <option v-for="chip in mainChipOptions" :key="chip" :value="chip">{{ chip }}</option>
-        </select>
-      </div>
-      <div class="filter-item">
-        <label>Sensor：</label>
-        <select v-model="filters.sensor_model" @change="fetchDevices" class="form-select">
-          <option value="">全部</option>
-          <option v-for="sensor in sensorOptions" :key="sensor" :value="sensor">{{ sensor }}</option>
-        </select>
-      </div>
-      <div class="filter-item">
-        <label>焦距：</label>
-        <select v-model="filters.focal_length" @change="fetchDevices" class="form-select">
-          <option value="">全部</option>
-          <option v-for="focal in focalOptions" :key="focal" :value="focal">{{ focal }}</option>
-        </select>
-      </div>
-      <div class="filter-item">
-        <label>光圈：</label>
-        <select v-model="filters.aperture" @change="fetchDevices" class="form-select">
-          <option value="">全部</option>
-          <option v-for="apt in apertureOptions" :key="apt" :value="apt">{{ apt }}</option>
-        </select>
-      </div>
-    </div>
-
     <div class="device-list">
+      <div class="device-table">
       <div class="device-item header">
         <span class="col-name">设备名称</span>
-        <span class="col-chip">主控</span>
-        <span class="col-sensor">Sensor</span>
-        <span class="col-aperture">光圈</span>
-        <span class="col-focal">焦距</span>
-        <span class="col-resolution">分辨率</span>
+        <span class="col-chip filterable" @click.stop="toggleFilter('main_chip')">
+          主控型号
+          <span class="filter-icon" :class="{ active: filters.main_chip }">▼</span>
+          <div v-if="activeFilter === 'main_chip'" class="filter-dropdown" @click.stop>
+            <input v-model="filterSearch.main_chip" placeholder="搜索..." class="filter-search" />
+            <div class="filter-list">
+              <div class="filter-option" :class="{ selected: !filters.main_chip }" @click="setFilter('main_chip', '')">全部</div>
+              <div v-for="val in filteredMainChipOptions" :key="val" class="filter-option" :class="{ selected: filters.main_chip === val }" @click="setFilter('main_chip', val)">{{ val }}</div>
+            </div>
+          </div>
+        </span>
+        <span class="col-lens">镜头型号</span>
+        <span class="col-sensor filterable" @click.stop="toggleFilter('sensor_model')">
+          Sensor
+          <span class="filter-icon" :class="{ active: filters.sensor_model }">▼</span>
+          <div v-if="activeFilter === 'sensor_model'" class="filter-dropdown" @click.stop>
+            <input v-model="filterSearch.sensor_model" placeholder="搜索..." class="filter-search" />
+            <div class="filter-list">
+              <div class="filter-option" :class="{ selected: !filters.sensor_model }" @click="setFilter('sensor_model', '')">全部</div>
+              <div v-for="val in filteredSensorOptions" :key="val" class="filter-option" :class="{ selected: filters.sensor_model === val }" @click="setFilter('sensor_model', val)">{{ val }}</div>
+            </div>
+          </div>
+        </span>
+        <span class="col-aperture filterable" @click.stop="toggleFilter('aperture')">
+          光圈
+          <span class="filter-icon" :class="{ active: filters.aperture }">▼</span>
+          <div v-if="activeFilter === 'aperture'" class="filter-dropdown" @click.stop>
+            <input v-model="filterSearch.aperture" placeholder="搜索..." class="filter-search" />
+            <div class="filter-list">
+              <div class="filter-option" :class="{ selected: !filters.aperture }" @click="setFilter('aperture', '')">全部</div>
+              <div v-for="val in filteredApertureOptions" :key="val" class="filter-option" :class="{ selected: filters.aperture === val }" @click="setFilter('aperture', val)">{{ val }}</div>
+            </div>
+          </div>
+        </span>
+        <span class="col-focal filterable" @click.stop="toggleFilter('focal_length')">
+          焦距
+          <span class="filter-icon" :class="{ active: filters.focal_length }">▼</span>
+          <div v-if="activeFilter === 'focal_length'" class="filter-dropdown" @click.stop>
+            <input v-model="filterSearch.focal_length" placeholder="搜索..." class="filter-search" />
+            <div class="filter-list">
+              <div class="filter-option" :class="{ selected: !filters.focal_length }" @click="setFilter('focal_length', '')">全部</div>
+              <div v-for="val in filteredFocalOptions" :key="val" class="filter-option" :class="{ selected: filters.focal_length === val }" @click="setFilter('focal_length', val)">{{ val }}</div>
+            </div>
+          </div>
+        </span>
+        <span class="col-resolution filterable" @click.stop="toggleFilter('resolution')">
+          分辨率
+          <span class="filter-icon" :class="{ active: filters.resolution }">▼</span>
+          <div v-if="activeFilter === 'resolution'" class="filter-dropdown" @click.stop>
+            <input v-model="filterSearch.resolution" placeholder="搜索..." class="filter-search" />
+            <div class="filter-list">
+              <div class="filter-option" :class="{ selected: !filters.resolution }" @click="setFilter('resolution', '')">全部</div>
+              <div v-for="val in filteredResolutionOptions" :key="val" class="filter-option" :class="{ selected: filters.resolution === val }" @click="setFilter('resolution', val)">{{ val }}</div>
+            </div>
+          </div>
+        </span>
+        <span class="col-frame">帧率</span>
+        <span class="col-led">白光灯珠</span>
+        <span class="col-led">红外灯珠</span>
+        <span class="col-housing">壳体</span>
+        <span class="col-attrs">扩展参数</span>
         <span class="col-count">图像数</span>
         <span class="col-action">操作</span>
       </div>
 
-      <div v-for="device in filteredDevices" :key="device.id" class="device-item">
-        <span class="col-name">{{ device.name }}</span>
-        <span class="col-chip">{{ device.main_chip }}</span>
-        <span class="col-sensor">{{ device.sensor_model }}</span>
-        <span class="col-aperture">{{ device.aperture }}</span>
-        <span class="col-focal">{{ device.focal_length }}</span>
-        <span class="col-resolution">{{ device.resolution }}</span>
+      <div v-for="device in paginatedDevices" :key="device.id" class="device-item">
+        <span class="col-name" :title="device.name">{{ device.name }}</span>
+        <span class="col-chip" :title="device.main_chip">{{ device.main_chip || '-' }}</span>
+        <span class="col-lens" :title="device.lens_model">{{ device.lens_model || '-' }}</span>
+        <span class="col-sensor" :title="device.sensor_model">{{ device.sensor_model || '-' }}</span>
+        <span class="col-aperture" :title="device.aperture">{{ device.aperture || '-' }}</span>
+        <span class="col-focal" :title="device.focal_length">{{ device.focal_length || '-' }}</span>
+        <span class="col-resolution" :title="device.resolution">{{ device.resolution || '-' }}</span>
+        <span class="col-frame" :title="device.frame_rate">{{ device.frame_rate || '-' }}</span>
+        <span class="col-led" :title="device.white_led">{{ device.white_led || '-' }}</span>
+        <span class="col-led" :title="device.ir_led">{{ device.ir_led || '-' }}</span>
+        <span class="col-housing" :title="device.housing_info">{{ device.housing_info || '-' }}</span>
+        <span class="col-attrs" :title="formatAttrs(device.device_attrs)">{{ formatAttrs(device.device_attrs) }}</span>
         <span class="col-count">{{ device.image_count }}</span>
         <span class="col-action">
           <button class="btn-sm btn-edit" @click="editDevice(device)">编辑</button>
@@ -63,6 +95,26 @@
 
       <div v-if="filteredDevices.length === 0" class="empty-tip">
         暂无设备数据
+      </div>
+      </div>
+
+      <!-- 分页 -->
+      <div v-if="filteredDevices.length > 0" class="pagination">
+        <div class="page-size">
+          <label>每页</label>
+          <select v-model.number="pageSize" @change="currentPage = 1">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+          <label>条</label>
+        </div>
+        <span class="page-info">共 {{ filteredDevices.length }} 条，{{ currentPage }}/{{ totalPages }} 页</span>
+        <div class="page-btns">
+          <button :disabled="currentPage <= 1" @click="currentPage--">上一页</button>
+          <button :disabled="currentPage >= totalPages" @click="currentPage++">下一页</button>
+        </div>
       </div>
     </div>
 
@@ -217,17 +269,24 @@ const saving = ref(false)
 const errorMessage = ref('')
 const jsonInput = ref('')
 
+// 筛选和分页
+const activeFilter = ref(null)
 const filters = ref({
   main_chip: '',
   sensor_model: '',
   focal_length: '',
   aperture: '',
+  resolution: '',
 })
-
-const mainChipOptions = ref([])
-const sensorOptions = ref([])
-const focalOptions = ref([])
-const apertureOptions = ref([])
+const filterSearch = ref({
+  main_chip: '',
+  sensor_model: '',
+  focal_length: '',
+  aperture: '',
+  resolution: '',
+})
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 const customParams = ref([])
 
@@ -250,14 +309,75 @@ const form = ref({
   features: '',
 })
 
+// 筛选逻辑
+function toggleFilter(column) {
+  activeFilter.value = activeFilter.value === column ? null : column
+}
+
+function setFilter(column, value) {
+  filters.value[column] = value
+  currentPage.value = 1
+  activeFilter.value = null
+}
+
+function closeAllFilters() {
+  activeFilter.value = null
+}
+
+// 格式化扩展参数
+function formatAttrs(attrs) {
+  if (!attrs || typeof attrs !== 'object') return '-'
+  const entries = Object.entries(attrs).filter(([k, v]) => v)
+  if (entries.length === 0) return '-'
+  return entries.map(([k, v]) => `${k}: ${v}`).join(', ')
+}
+
+// 唯一值列表
+const uniqueMainChips = computed(() => [...new Set(devices.value.map(d => d.main_chip).filter(Boolean))].sort())
+const uniqueSensors = computed(() => [...new Set(devices.value.map(d => d.sensor_model).filter(Boolean))].sort())
+const uniqueApertures = computed(() => [...new Set(devices.value.map(d => d.aperture).filter(Boolean))].sort())
+const uniqueFocals = computed(() => [...new Set(devices.value.map(d => d.focal_length).filter(Boolean))].sort())
+const uniqueResolutions = computed(() => [...new Set(devices.value.map(d => d.resolution).filter(Boolean))].sort())
+
+// 搜索过滤后的选项
+const filteredMainChipOptions = computed(() => {
+  const search = filterSearch.value.main_chip.toLowerCase()
+  return search ? uniqueMainChips.value.filter(v => v.toLowerCase().includes(search)) : uniqueMainChips.value
+})
+const filteredSensorOptions = computed(() => {
+  const search = filterSearch.value.sensor_model.toLowerCase()
+  return search ? uniqueSensors.value.filter(v => v.toLowerCase().includes(search)) : uniqueSensors.value
+})
+const filteredApertureOptions = computed(() => {
+  const search = filterSearch.value.aperture.toLowerCase()
+  return search ? uniqueApertures.value.filter(v => v.toLowerCase().includes(search)) : uniqueApertures.value
+})
+const filteredFocalOptions = computed(() => {
+  const search = filterSearch.value.focal_length.toLowerCase()
+  return search ? uniqueFocals.value.filter(v => v.toLowerCase().includes(search)) : uniqueFocals.value
+})
+const filteredResolutionOptions = computed(() => {
+  const search = filterSearch.value.resolution.toLowerCase()
+  return search ? uniqueResolutions.value.filter(v => v.toLowerCase().includes(search)) : uniqueResolutions.value
+})
+
+// 筛选后的数据
 const filteredDevices = computed(() => {
   return devices.value.filter(d => {
     if (filters.value.main_chip && d.main_chip !== filters.value.main_chip) return false
     if (filters.value.sensor_model && d.sensor_model !== filters.value.sensor_model) return false
-    if (filters.value.focal_length && d.focal_length !== filters.value.focal_length) return false
     if (filters.value.aperture && d.aperture !== filters.value.aperture) return false
+    if (filters.value.focal_length && d.focal_length !== filters.value.focal_length) return false
+    if (filters.value.resolution && d.resolution !== filters.value.resolution) return false
     return true
   })
+})
+
+// 分页
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredDevices.value.length / pageSize.value)))
+const paginatedDevices = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredDevices.value.slice(start, start + pageSize.value)
 })
 
 async function fetchDevices() {
@@ -266,12 +386,6 @@ async function fetchDevices() {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     }).then(r => r.json())
     devices.value = data
-
-    // 更新筛选选项
-    mainChipOptions.value = [...new Set(data.map(d => d.main_chip).filter(Boolean))]
-    sensorOptions.value = [...new Set(data.map(d => d.sensor_model).filter(Boolean))]
-    focalOptions.value = [...new Set(data.map(d => d.focal_length).filter(Boolean))]
-    apertureOptions.value = [...new Set(data.map(d => d.aperture).filter(Boolean))]
   } catch (e) {
     console.error('获取设备失败:', e)
     if (window.showAdminToast) window.showAdminToast(e.message || '获取设备失败', 'error')
@@ -452,6 +566,7 @@ async function submitDevice() {
 
 onMounted(() => {
   fetchDevices()
+  document.addEventListener('click', closeAllFilters)
 })
 </script>
 
@@ -539,27 +654,74 @@ onMounted(() => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
+  overflow-x: auto;
+}
+
+.device-table {
+  min-width: 1400px;
+  width: 100%;
 }
 
 .device-item {
   display: grid;
-  grid-template-columns: 180px 100px 90px 70px 80px 100px 70px 80px;
-  gap: 12px;
-  padding: 14px;
+  grid-template-columns: 150px 100px 90px 90px 70px 70px 90px 90px 60px 80px 80px 70px 150px 60px 70px;
+  gap: 8px;
+  padding: 12px;
   border-bottom: 1px solid #f1f5f9;
   align-items: center;
+  font-size: 13px;
 }
 
 .device-item.header {
   background: #f8fafc;
   font-weight: 600;
   color: #64748b;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.col-name { font-size: 14px; color: #374151; font-weight: 500; }
-.col-chip, .col-sensor, .col-aperture, .col-focal, .col-resolution, .col-count {
-  font-size: 13px; color: #64748b;
+.col-name {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 5;
+  padding-right: 8px;
+}
+.device-item.header .col-name {
+  background: #f8fafc;
+  z-index: 15;
+}
+
+.col-action {
+  position: sticky;
+  right: 0;
+  background: white;
+  z-index: 5;
+  padding-left: 8px;
+}
+.device-item.header .col-action {
+  background: #f8fafc;
+  z-index: 15;
+}
+
+.col-chip, .col-lens, .col-sensor, .col-aperture, .col-focal, .col-resolution, .col-frame, .col-led, .col-housing, .col-count {
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-attrs {
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+  max-width: 150px;
 }
 
 .btn-sm {
@@ -697,6 +859,108 @@ onMounted(() => {
   gap: 12px;
   padding: 16px 20px;
   border-top: 1px solid #e2e8f0;
+}
+
+/* 列头筛选下拉框 */
+.filterable {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+.filter-icon {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #94a3b8;
+  transition: color 0.15s;
+}
+.filter-icon.active { color: #3b82f6; }
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 180px;
+  max-height: 300px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+.filter-search {
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+  outline: none;
+  border-radius: 8px 8px 0 0;
+}
+.filter-list {
+  overflow-y: auto;
+  max-height: 250px;
+}
+.filter-option {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.filter-option:hover { background: #f1f5f9; }
+.filter-option.selected {
+  background: #eff6ff;
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+/* 分页控件 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748b;
+}
+.page-size select {
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+}
+.page-info {
+  font-size: 13px;
+  color: #64748b;
+}
+.page-btns {
+  display: flex;
+  gap: 8px;
+}
+.page-btns button {
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #475569;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.page-btns button:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.page-btns button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
