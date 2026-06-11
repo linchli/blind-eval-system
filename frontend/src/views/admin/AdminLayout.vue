@@ -40,6 +40,15 @@
           <span class="nav-icon">👥</span>
           <span class="nav-label">用户管理</span>
         </div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" :class="{ active: $route.name === 'DataCleaning' }" @click="$router.push('/admin/cleaning')">
+          <span class="nav-icon">🧹</span>
+          <span class="nav-label">数据清洗</span>
+        </div>
+        <div class="nav-item" :class="{ active: $route.name === 'AdminLeaderboard' }" @click="$router.push('/admin/leaderboard')">
+          <span class="nav-icon">🏆</span>
+          <span class="nav-label">排行榜</span>
+        </div>
       </nav>
 
       <main class="main-content">

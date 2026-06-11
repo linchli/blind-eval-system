@@ -84,6 +84,14 @@
           <span class="link-icon">👤</span>
           <span class="link-label">用户管理</span>
         </button>
+        <button class="link-card" @click="$router.push('/admin/cleaning')">
+          <span class="link-icon">🧹</span>
+          <span class="link-label">数据清洗</span>
+        </button>
+        <button class="link-card" @click="$router.push('/admin/leaderboard')">
+          <span class="link-icon">🏆</span>
+          <span class="link-label">排行榜</span>
+        </button>
       </div>
     </div>
 

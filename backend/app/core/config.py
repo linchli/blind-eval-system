@@ -52,3 +52,18 @@ THUMB_SIZE = (300, 300)  # 缩略图最大尺寸
 # ==================== 批量上传 ====================
 MAX_BATCH_SIZE = int(os.getenv("MAX_BATCH_SIZE", "1000"))
 DAILY_LIMIT = int(os.getenv("DAILY_LIMIT", "500"))
+
+# ==================== 数据清洗参数 ====================
+# 单用户一致性 (加权 Agreement)
+SINGLE_USER_CORRELATION_THRESHOLD = 0.70  # agreement_score >= 此值 → 通过
+SINGLE_USER_HARD_REJECT_AGREEMENT = 0.55  # agreement_score < 此值 → 直接拒绝
+
+# 用户组一致性
+GROUP_MAX_THRESHOLD = 0.85  # 动态阈值上限
+GROUP_MIN_THRESHOLD = 0.55  # 动态阈值下限
+
+# 数据量下限
+MIN_DEVICES_PER_SCENE = 2  # 场景内至少需要 2 个设备才能计算相关系数
+
+# 复评比例要求
+RETEST_RATIO = 0.10  # 复评对数占总对数的最低比例

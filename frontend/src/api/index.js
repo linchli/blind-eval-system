@@ -158,3 +158,55 @@ export const apiBatchUpload = (formData, onProgress) => {
     xhr.send(formData)
   })
 }
+
+// ==================== 数据清洗 ====================
+export const apiGetCleaningDefaults = () => request('/api/cleaning/defaults')
+export const apiGetCleaningStatus = () => request('/api/cleaning/status')
+export const apiExecuteCleaning = (params) => request('/api/cleaning/execute', {
+  method: 'POST',
+  body: JSON.stringify({ params }),
+})
+export const apiExportCleaningReport = async () => {
+  const token = localStorage.getItem('blind_eval_token')
+  const resp = await fetch('/api/cleaning/export', {
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (!resp.ok) throw new Error('导出失败')
+  const blob = await resp.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'cleaning_report.txt'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ==================== 排行榜 ====================
+export const apiGetLeaderboard = (params = {}) => {
+  const query = new URLSearchParams(params).toString()
+  return request(`/api/leaderboard${query ? '?' + query : ''}`)
+}
+export const apiGetLeaderboardFilters = () => request('/api/leaderboard/filters')
+export const apiGetLeaderboardUsers = () => request('/api/leaderboard/users')
+export const apiGetLeaderboardDetails = (params = {}) => {
+  const query = new URLSearchParams(params).toString()
+  return request(`/api/leaderboard/details?${query}`)
+}
+export const apiExportLeaderboard = async (params = {}) => {
+  const token = localStorage.getItem('blind_eval_token')
+  const query = new URLSearchParams(params).toString()
+  const resp = await fetch(`/api/leaderboard/export?${query}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (!resp.ok) {
+    const d = await resp.json().catch(() => ({}))
+    throw new Error(d.detail || '导出失败')
+  }
+  const blob = await resp.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'leaderboard_export.txt'
+  a.click()
+  URL.revokeObjectURL(url)
+}

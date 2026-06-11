@@ -11,6 +11,9 @@ import ImageManage from '../views/admin/ImageManage.vue'
 import PairManage from '../views/admin/PairManage.vue'
 import UserManage from '../views/admin/UserManage.vue'
 
+const DataCleaning = () => import('../views/admin/DataCleaning.vue')
+const Leaderboard = () => import('../views/admin/Leaderboard.vue')
+
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', name: 'Login', component: LoginView },
@@ -18,6 +21,7 @@ const routes = [
   { path: '/reset-password', name: 'ResetPassword', component: () => import('../views/auth/ResetPasswordView.vue') },
   { path: '/eval', name: 'Eval', component: EvalView },
   { path: '/result', name: 'Result', component: ResultView },
+  { path: '/ranking', name: 'Leaderboard', component: Leaderboard },
   {
     path: '/admin',
     component: AdminLayout,
@@ -30,6 +34,8 @@ const routes = [
       { path: 'pairs', name: 'PairManage', component: PairManage },
       { path: 'users', name: 'UserManage', component: UserManage },
       { path: 'batch-upload', name: 'BatchUpload', component: () => import('../views/admin/BatchUpload.vue') },
+      { path: 'cleaning', name: 'DataCleaning', component: DataCleaning },
+      { path: 'leaderboard', name: 'AdminLeaderboard', component: Leaderboard },
     ],
   },
 ]
@@ -42,7 +48,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('blind_eval_token')
   // 不需要登录的页面
-  const publicPages = ['Login', 'Register', 'ResetPassword']
+  const publicPages = ['Login', 'Register', 'ResetPassword', 'Leaderboard']
   if (!publicPages.includes(to.name) && !token) {
     next({ name: 'Login' })
   } else {
