@@ -572,7 +572,10 @@ watch(activeTab, (tab) => {
 onMounted(() => {
   fetchFilters()
   fetchLeaderboard()
-  fetchUsers()
+  // 只在管理员登录时获取用户列表
+  if (authStore.isAdmin) {
+    fetchUsers()
+  }
 
   window.addEventListener('resize', () => {
     barChart?.resize()
