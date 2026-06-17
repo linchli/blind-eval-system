@@ -1,11 +1,12 @@
 """
 设备 ORM 模型
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, UniqueConstraint, event
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..core.database import Base
+from ..core.normalize import normalize_upper, normalize_strip
 
 
 class DeviceModel(Base):
@@ -33,3 +34,22 @@ class DeviceModel(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     images = relationship("Image", back_populates="device")
+
+
+def _normalize_device(mapper, connection, target):
+    """insert/update 时自动标准化设备字段"""
+    target.name = normalize_strip(target.name)
+    target.main_chip = normalize_upper(target.main_chip)
+    target.lens_model = normalize_upper(target.lens_model)
+    target.sensor_model = normalize_upper(target.sensor_model)
+    target.aperture = normalize_strip(target.aperture)
+    target.focal_length = normalize_upper(target.focal_length)
+    target.resolution = normalize_upper(target.resolution)
+    target.frame_rate = normalize_strip(target.frame_rate)
+    target.white_led = normalize_upper(target.white_led)
+    target.ir_led = normalize_upper(target.ir_led)
+    target.housing_info = normalize_strip(target.housing_info)
+
+
+event.listen(DeviceModel, "before_insert", _normalize_device)
+event.listen(DeviceModel, "before_update", _normalize_device)

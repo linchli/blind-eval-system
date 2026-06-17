@@ -1,11 +1,12 @@
 """
 大类 × 地点 ORM 模型
 """
-from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint, event
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..core.database import Base
+from ..core.normalize import normalize_strip
 
 
 class SceneCategory(Base):
@@ -24,3 +25,13 @@ class SceneCategory(Base):
 
     def __repr__(self):
         return f"<SceneCategory {self.name}({self.location})>"
+
+
+def _normalize_scene_category(mapper, connection, target):
+    """insert/update 时自动标准化"""
+    target.name = normalize_strip(target.name)
+    target.location = normalize_strip(target.location)
+
+
+event.listen(SceneCategory, "before_insert", _normalize_scene_category)
+event.listen(SceneCategory, "before_update", _normalize_scene_category)

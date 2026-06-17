@@ -7,7 +7,8 @@
       "Bash(python *)",
       "Skill(superpowers:brainstorming)",
       "Bash(ls -la .venv/Scripts/python.exe)",
-      "Bash(ls -la venv/Scripts/python.exe)"
+      "Bash(ls -la venv/Scripts/python.exe)",
+      "Skill(superpowers:systematic-debugging)"
     ]
   },
   "enabledPlugins": {

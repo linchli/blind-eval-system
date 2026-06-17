@@ -63,6 +63,3 @@ test_images/*
 # Backup files
 *.bak
 *.backup
-
-# Doc
-docs/*
