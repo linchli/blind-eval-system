@@ -1,0 +1,101 @@
+# -*- mode: python ; coding: utf-8 -*-
+import sys
+from pathlib import Path
+
+block_cipher = None
+
+# 前端 dist 目录
+frontend_dist = str(Path('frontend') / 'dist')
+
+a = Analysis(
+    ['backend/main.py'],
+    pathex=['backend'],
+    binaries=[],
+    datas=[
+        (frontend_dist, 'frontend/dist'),
+    ],
+    hiddenimports=[
+        'uvicorn.logging',
+        'uvicorn.loops',
+        'uvicorn.loops.auto',
+        'uvicorn.protocols',
+        'uvicorn.protocols.http',
+        'uvicorn.protocols.http.auto',
+        'uvicorn.protocols.websockets',
+        'uvicorn.protocols.websockets.auto',
+        'uvicorn.lifespan',
+        'uvicorn.lifespan.on',
+        'backend',
+        'backend.app',
+        'backend.app.api',
+        'backend.app.api.auth',
+        'backend.app.api.admin',
+        'backend.app.api.image',
+        'backend.app.api.eval',
+        'backend.app.api.batch_upload',
+        'backend.app.api.cleaning',
+        'backend.app.api.leaderboard',
+        'backend.app.core',
+        'backend.app.core.config',
+        'backend.app.core.database',
+        'backend.app.core.dependencies',
+        'backend.app.core.security',
+        'backend.app.models',
+        'backend.app.models.user',
+        'backend.app.models.scene',
+        'backend.app.models.scene_category',
+        'backend.app.models.scene_subcategory',
+        'backend.app.models.device_model',
+        'backend.app.models.image',
+        'backend.app.models.image_pair',
+        'backend.app.models.evaluation',
+        'backend.app.models.leaderboard',
+        'backend.app.schemas',
+        'backend.app.services',
+        'backend.app.services.auth_service',
+        'backend.app.services.image_service',
+        'backend.app.services.cleaning_service',
+        'backend.app.services.leaderboard_service',
+        'backend.app.services.stats_service',
+        'pymysql',
+        'passlib.handlers.bcrypt',
+        'bcrypt',
+        'email_validator',
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[
+        'tkinter', 'matplotlib', 'IPython', 'notebook',
+        'pytest', 'setuptools', 'pip',
+    ],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='blind_eval',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=None,
+)

@@ -3,10 +3,13 @@ FastAPI 应用入口
 """
 import os
 import sys
+import argparse
+import webbrowser
+import threading
 from pathlib import Path
 
 # 添加 backend 目录到 Python 路径，使 from app.xxx 导入能正确解析
-BACKEND_DIR = Path(__file__).parent
+BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
@@ -23,8 +26,16 @@ from app.core.security import hash_password
 from app.models import User, SceneCategory, SceneSubcategory, Scene, DeviceModel, Image, ImagePair, EvalSession, Evaluation
 from app.api import auth, admin, image, eval as eval_router, batch_upload, cleaning, leaderboard
 
-PROJECT_ROOT = Path(__file__).parent.parent
-DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
+# PyInstaller 打包后，前端文件在 _MEIPASS 临时目录中
+def _get_dist_dir():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller onefile 模式：前端资源被打包到临时目录
+        base = Path(sys._MEIPASS)
+        return base / "frontend" / "dist"
+    else:
+        return Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
+DIST_DIR = _get_dist_dir()
 
 # 判断是否为生产模式（前端已构建）
 IS_PRODUCTION = DIST_DIR.exists() and any(DIST_DIR.glob("*.html"))
@@ -157,4 +168,19 @@ if IS_PRODUCTION:
 
 
 if __name__ == "__main__":
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
+    parser = argparse.ArgumentParser(description="图像盲评系统")
+    parser.add_argument("--port", type=int, default=8000, help="服务端口 (默认 8000)")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="服务地址 (默认 0.0.0.0)")
+    parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
+    args = parser.parse_args()
+
+    if not args.no_browser:
+        url = f"http://localhost:{args.port}"
+        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+
+    uvicorn.run(
+        "backend.main:app" if not getattr(sys, 'frozen', False) else app,
+        host=args.host,
+        port=args.port,
+        reload=not getattr(sys, 'frozen', False),
+    )

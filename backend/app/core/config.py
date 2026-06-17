@@ -2,10 +2,14 @@
 应用配置：MySQL 连接、JWT 密钥、文件路径等
 """
 import os
+import sys
 from pathlib import Path
 
-# 项目根目录
-BASE_DIR = Path(__file__).parent.parent.parent.parent
+# 项目根目录：PyInstaller 打包后使用 exe 所在目录，开发时使用源码根目录
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).parent.parent.parent.parent
 
 # ==================== MySQL ====================
 MYSQL_HOST = os.getenv("MYSQL_HOST", "127.0.0.1")
